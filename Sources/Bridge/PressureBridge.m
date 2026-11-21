@@ -56,8 +56,8 @@ NSString *const kPressureBridgeName = @"pressureBridge";
         [controller removeScriptMessageHandlerForName:kPressureBridgeName];
     } @catch (NSException *e) {}
 
-    if (world && @available(iOS 14.0, *)) {
-        if ([world isKindOfClass:[WKContentWorld class]]) {
+    if (@available(iOS 14.0, *)) {
+        if (world && [world isKindOfClass:[WKContentWorld class]]) {
             [controller addScriptMessageHandler:self contentWorld:(WKContentWorld *)world name:kPressureBridgeName];
             return;
         }
