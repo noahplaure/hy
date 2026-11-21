@@ -4,6 +4,8 @@
 #import "PressureConfig.h"
 #import "PressureLogger.h"
 #import "PressureBridge.h"
+#import "PressureSettingsViewController.h"
+#import "Resources_Embedded.h"
 
 static NSString *sPressureUserScript = nil;
 static NSString *sPressureCSS = nil;
@@ -14,7 +16,6 @@ static void LoadPressureAssets(void) {
         NSBundle *mainBundle = [NSBundle mainBundle];
         NSString *bundlePath = [mainBundle pathForResource:@"Pressure" ofType:@"bundle"];
         if (!bundlePath) {
-            // Sideloaded directory fallback
             bundlePath = @"/Library/Application Support/Pressure";
             if (![[NSFileManager defaultManager] fileExistsAtPath:bundlePath]) {
                 bundlePath = [[mainBundle bundlePath] stringByAppendingPathComponent:@"Pressure.bundle"];
@@ -24,15 +25,68 @@ static void LoadPressureAssets(void) {
         NSString *jsPath = [bundlePath stringByAppendingPathComponent:@"Pressure.user.js"];
         NSString *cssPath = [bundlePath stringByAppendingPathComponent:@"Pressure.css"];
 
-        NSError *err = nil;
-        sPressureUserScript = [NSString stringWithContentsOfFile:jsPath encoding:NSUTF8StringEncoding error:&err];
-        if (err || !sPressureUserScript) {
-            PressureLog(@"Failed to load Pressure.user.js from %@: %@", jsPath, err.localizedDescription);
+        if ([[NSFileManager defaultManager] fileExistsAtPath:jsPath]) {
+            NSError *err = nil;
+            sPressureUserScript = [NSString stringWithContentsOfFile:jsPath encoding:NSUTF8StringEncoding error:&err];
+            sPressureCSS = [NSString stringWithContentsOfFile:cssPath encoding:NSUTF8StringEncoding error:nil];
+            PressureLog(@"[Hooks] Loaded assets from disk (%@)", jsPath);
         }
 
-        sPressureCSS = [NSString stringWithContentsOfFile:cssPath encoding:NSUTF8StringEncoding error:nil];
+        // Embedded fallback guarantees code execution even if bundle is missing
+        if (!sPressureUserScript || sPressureUserScript.length == 0) {
+            sPressureUserScript = kEmbeddedPressureUserJS;
+            sPressureCSS = kEmbeddedPressureCSS;
+            PressureLog(@"[Hooks] Loaded embedded JS (%lu bytes) and CSS (%lu bytes)", 
+                        (unsigned long)sPressureUserScript.length, (unsigned long)sPressureCSS.length);
+        }
     });
 }
+
+%hook UIWindow
+
+- (void)becomeKeyWindow {
+    %orig;
+
+    // Attach long-press gesture (0.5s) to the window to detect holds on MENU or top bar
+    BOOL hasLongPress = NO;
+    for (UIGestureRecognizer *gr in self.gestureRecognizers) {
+        if ([gr.name isEqualToString:@"PressureMenuLongPress"]) {
+            hasLongPress = YES;
+            break;
+        }
+    }
+
+    if (!hasLongPress) {
+        UILongPressGestureRecognizer *lp = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(pressure_handleWindowLongPress:)];
+        lp.minimumPressDuration = 0.55;
+        lp.cancelsTouchesInView = NO;
+        lp.name = @"PressureMenuLongPress";
+        [self addGestureRecognizer:lp];
+        PressureLog(@"[Hooks] Attached PressureMenuLongPress gesture to KeyWindow");
+    }
+}
+
+- (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+    if (motion == UIEventSubtypeMotionShake) {
+        PressureLog(@"[Hooks] Shake motion detected, presenting Pressure Settings");
+        [PressureSettingsViewController presentFromRoot];
+    }
+    %orig(motion, event);
+}
+
+%new
+- (void)pressure_handleWindowLongPress:(UILongPressGestureRecognizer *)sender {
+    if (sender.state == UIGestureRecognizerStateBegan) {
+        CGPoint pt = [sender locationInView:self];
+        // If long press is in the top header area (y <= 120, where avatar and MENU live)
+        if (pt.y <= 120.0) {
+            PressureLog(@"[Hooks] Long-press detected in top bar area (pt: %.1f, %.1f), presenting Pressure Settings", pt.x, pt.y);
+            [PressureSettingsViewController presentFromRoot];
+        }
+    }
+}
+
+%end
 
 %hook WKWebView
 
@@ -71,10 +125,15 @@ static void LoadPressureAssets(void) {
             [ucc addUserScript:userScript];
         }
 
-        PressureLog(@"Injected Pressure suite into WKWebView configuration");
+        PressureLog(@"[Hooks] Attached Pressure suite to WKWebView (%p)", self);
     }
 
     return %orig(frame, configuration);
+}
+
+- (WKNavigation *)loadRequest:(NSURLRequest *)request {
+    PressureLog(@"[Hooks] WKWebView (%p) loadRequest: %@", self, request.URL.absoluteString);
+    return %orig(request);
 }
 
 %end
@@ -87,16 +146,19 @@ static void LoadPressureAssets(void) {
         }
 
         NSString *version = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
-        PressureLog(@"Initializing Pressure tweak for Steam Mobile (version: %@)...", version);
+        PressureLog(@"=== Pressure Tweak Initializing ===");
+        PressureLog(@"Target Bundle: %@", bundleID);
+        PressureLog(@"App Version: %@", version);
+        PressureLog(@"Disk log path: %@", [[PressureLogger sharedInstance] logFilePath]);
 
         PressureConfig *cfg = [PressureConfig sharedInstance];
         if (![cfg validateAppVersion:version]) {
-            PressureLog(@"Safe Mode engaged. Active hooks disabled to prevent instability.");
+            PressureLog(@"[SafeMode] Safe Mode engaged. Version %@ mismatch.", version);
             return;
         }
 
         LoadPressureAssets();
         %init;
-        PressureLog(@"Pressure initialization completed successfully.");
+        PressureLog(@"=== Pressure Initialization Complete ===");
     }
 }

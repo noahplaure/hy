@@ -11,11 +11,11 @@ $(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation WebKit LocalAuthentication Security
 $(TWEAK_NAME)_LOGOS_DEFAULT_GENERATOR = internal
 
 BUNDLE_NAME = Pressure
-$(BUNDLE_NAME)_INSTALL_PATH = /Library/Application Support/Pressure
+$(BUNDLE_NAME)_INSTALL_PATH = /Library/Application Support/Pressure.bundle
 
 after-stage::
 	@echo ">>> Staging Pressure.bundle assets..."
-	@mkdir -p $(THEOS_STAGING_DIR)/Library/Application\ Support/Pressure
-	@cp -a Resources/* $(THEOS_STAGING_DIR)/Library/Application\ Support/Pressure/
+	@mkdir -p $(THEOS_STAGING_DIR)/Library/Application\ Support/Pressure.bundle
+	@cp -a Resources/* $(THEOS_STAGING_DIR)/Library/Application\ Support/Pressure.bundle/
 
 include $(THEOS_MAKE_PATH)/tweak.mk

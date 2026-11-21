@@ -54,7 +54,7 @@ jobs:
       - name: Compile Pressure Tweak (.deb rootless)
         run: |
           THEOS_PACKAGE_SCHEME=rootless make clean package FINALPACKAGE=1 STRIP=0
-          DEB_PATH=$(find packages -name "*.deb" | head -n 1)
+          DEB_PATH=$(find packages -name "*.deb" | head -1)
           [ -n "$DEB_PATH" ] || { echo "::error::deb not produced" >&2; exit 1; }
           echo "DEB_PATH=$DEB_PATH" >> $GITHUB_ENV
           echo "DEB_NAME=$(basename "$DEB_PATH")" >> $GITHUB_ENV
@@ -105,11 +105,24 @@ jobs:
 
           echo "have_ipa=true" >> "$GITHUB_OUTPUT"
 
-      - name: Strip IPA for Sideloading
+      - name: Strip IPA for Sideloading & Enable Documents Sharing
         if: ${{ steps.ipa.outputs.have_ipa == 'true' }}
         run: |
           chmod +x Tools/strip-ipa.sh
           Tools/strip-ipa.sh "${{ github.workspace }}/target.ipa"
+
+          # Enable iTunes File Sharing so user can easily grab log.txt via the iOS Files app
+          WORK_DIR=$(mktemp -d)
+          unzip -q "${{ github.workspace }}/target.ipa" -d "$WORK_DIR"
+          INFO_PLIST=$(find "$WORK_DIR/Payload" -name "Info.plist" | head -1)
+          if [ -f "$INFO_PLIST" ]; then
+            plutil -replace UIFileSharingEnabled -bool YES "$INFO_PLIST" || plutil -insert UIFileSharingEnabled -bool YES "$INFO_PLIST"
+            plutil -replace LSSupportsOpeningDocumentsInPlace -bool YES "$INFO_PLIST" || plutil -insert LSSupportsOpeningDocumentsInPlace -bool YES "$INFO_PLIST"
+            echo "Enabled UIFileSharingEnabled and LSSupportsOpeningDocumentsInPlace in Info.plist"
+          fi
+          rm -f "${{ github.workspace }}/target.ipa"
+          (cd "$WORK_DIR" && zip -qry "${{ github.workspace }}/target.ipa" Payload)
+          rm -rf "$WORK_DIR"
 
       - name: Inject Pressure into IPA
         if: ${{ steps.ipa.outputs.have_ipa == 'true' }}
@@ -119,8 +132,8 @@ jobs:
           mkdir -p "$DEB_EXTRACT"
           dpkg-deb -R "$DEB_PATH" "$DEB_EXTRACT"
 
-          DYLIB_SRC=$(find "$DEB_EXTRACT" -name 'Pressure.dylib' | head -n 1)
-          BUNDLE_SRC=$(find "$DEB_EXTRACT" -type d -name 'Pressure' -o -name 'Pressure.bundle' | head -n 1)
+          DYLIB_SRC=$(find "$DEB_EXTRACT" -name 'Pressure.dylib' | head -1)
+          BUNDLE_SRC=$(find "$DEB_EXTRACT" -type d -name 'Pressure' -o -name 'Pressure.bundle' | head -1)
 
           STEAM_VER=$(unzip -p "${{ github.workspace }}/target.ipa" 'Payload/*.app/Info.plist' \
               | plutil -extract CFBundleShortVersionString raw - 2>/dev/null || echo "3.10.13")

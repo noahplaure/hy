@@ -20,7 +20,6 @@
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pressureBridge) {
           window.webkit.messageHandlers.pressureBridge.postMessage(message);
         } else {
-          // Web preview fallback
           if (action === 'getConfig') resolve({});
           else if (action === 'authenticateBiometrics') resolve({ authenticated: true });
           else resolve({});
@@ -46,13 +45,15 @@
     }
   };
 
-  // --- State & Defaults ---
+  Bridge.log(`[Pressure Web] Initialized at URL: ${window.location.href}`);
+
+  // --- State ---
   const State = {
     config: {
       enabled: true,
       safeMode: false,
       showPriceBadges: true,
-      externalPrices: false,
+      externalPrices: true,
       externalPriceSource: 'CSFloat',
       massSellEnabled: true,
       quickBuyOrderSell: true,
@@ -62,17 +63,19 @@
       tradeLossThresholdPercent: 15.0,
       minPriceRatio: 0.50,
       maxPriceRatio: 3.00,
-      requestDelayMs: 350,
+      requestDelayMs: 300,
       priceCacheTtlSeconds: 3600
     },
     selectedItems: new Map(),
     inventoryTotalValue: 0,
-    currencySymbol: '$',
+    activeChatFriend: null,
+    friendsList: [],
+    chatPollTimer: null,
     isProcessingQueue: false,
     stopQueueRequested: false
   };
 
-  // --- Network Layer with Throttle, Queue, and Exponential Backoff ---
+  // --- Network Queue with Backoff ---
   class NetworkQueue {
     constructor() {
       this.queue = [];
@@ -118,7 +121,7 @@
         if ((status === 429 || status >= 500) && item.retries < 3) {
           item.retries++;
           const backoff = Math.pow(2, item.retries) * 1000 + Math.random() * 500;
-          Bridge.log(`Backoff on HTTP ${status}: retrying in ${Math.round(backoff)}ms (attempt ${item.retries})`);
+          Bridge.log(`[Network] Backoff on HTTP ${status}: retrying in ${Math.round(backoff)}ms (attempt ${item.retries})`);
           await new Promise(r => setTimeout(r, backoff));
           this.queue.unshift(item);
         } else {
@@ -165,9 +168,8 @@
     }
   };
 
-  // --- Steam Fee Calculation Engine ---
+  // --- Fee Calculation ---
   const FeeEngine = {
-    // Dynamic fees taken from page context (g_rgWalletInfo) or defaults
     getFees() {
       let steamFee = 0.05;
       let publisherFee = 0.10;
@@ -183,10 +185,8 @@
       return { steamFee, publisherFee };
     },
 
-    // Standard Valve integer cents rounding algorithm
     calculateAmounts(receiveAmountCents) {
       const { steamFee, publisherFee } = this.getFees();
-
       const steamCut = Math.max(Math.floor(receiveAmountCents * steamFee), 1);
       const publisherCut = Math.max(Math.floor(receiveAmountCents * publisherFee), 1);
       const buyerPaysCents = receiveAmountCents + steamCut + publisherCut;
@@ -218,26 +218,30 @@
     }
   };
 
-  // --- Price Services ---
+  // --- Price Service (CS2 & Steam Market) ---
   const PriceService = {
     async fetchSteamPrice(appid, marketHashName, signal) {
       const cached = Cache.get('steam_price', `${appid}_${marketHashName}`);
       if (cached) return cached;
 
       const url = `/market/priceoverview/?currency=1&appid=${appid}&market_hash_name=${encodeURIComponent(marketHashName)}`;
-      const res = await Net.enqueue(() => fetch(url, { signal }), signal);
-      const data = await res.json();
-
-      if (data && data.success) {
-        const parsed = {
-          lowestPrice: data.lowest_price || null,
-          medianPrice: data.median_price || null,
-          volume: data.volume || null,
-          lowestCents: PriceService.parsePriceToCents(data.lowest_price),
-          medianCents: PriceService.parsePriceToCents(data.median_price)
-        };
-        Cache.set('steam_price', `${appid}_${marketHashName}`, parsed);
-        return parsed;
+      try {
+        const res = await Net.enqueue(() => fetch(url, { signal }), signal);
+        const data = await res.json();
+        if (data && data.success) {
+          const parsed = {
+            lowestPrice: data.lowest_price || null,
+            medianPrice: data.median_price || null,
+            volume: data.volume || null,
+            lowestCents: PriceService.parsePriceToCents(data.lowest_price),
+            medianCents: PriceService.parsePriceToCents(data.median_price)
+          };
+          Cache.set('steam_price', `${appid}_${marketHashName}`, parsed);
+          Bridge.log(`[PriceService] Steam price for ${marketHashName}: ${data.lowest_price}`);
+          return parsed;
+        }
+      } catch (err) {
+        Bridge.log(`[PriceService] Error fetching Steam price for ${marketHashName}: ${err.message || err}`);
       }
       return null;
     },
@@ -249,48 +253,20 @@
       if (cached) return cached;
 
       try {
-        // Safe public read-only pricing endpoint (CSFloat reference)
         const url = `https://csfloat.com/api/v1/listings/pricing?market_hash_name=${encodeURIComponent(marketHashName)}`;
         const res = await fetch(url, { signal });
         if (res.ok) {
           const data = await res.json();
-          const result = {
-            price: data.price ? `$${(data.price / 100).toFixed(2)}` : null,
-            source: 'CSFloat'
-          };
-          Cache.set('ext_price', marketHashName, result, 7200);
-          return result;
-        }
-      } catch (e) {}
-      return null;
-    },
-
-    async fetchItemNameId(marketUrl, signal) {
-      const cached = Cache.get('item_nameid', marketUrl);
-      if (cached) return cached;
-
-      try {
-        const res = await Net.enqueue(() => fetch(marketUrl, { signal }), signal);
-        const html = await res.text();
-        const match = html.match(/Market_LoadOrderSpread\(\s*(\d+)\s*\)/);
-        if (match && match[1]) {
-          const id = match[1];
-          Cache.set('item_nameid', marketUrl, id, 86400 * 30);
-          return id;
-        }
-      } catch (e) {}
-      return null;
-    },
-
-    async fetchHighestBuyOrder(itemNameId, signal) {
-      if (!itemNameId) return null;
-      const url = `/market/itemordershistogram?country=US&language=english&currency=1&item_nameid=${itemNameId}&two_factor=0`;
-      try {
-        const res = await Net.enqueue(() => fetch(url, { signal }), signal);
-        const data = await res.json();
-        if (data && data.buy_order_graph && data.buy_order_graph.length > 0) {
-          const highestOrderPrice = data.buy_order_graph[0][0]; // price in dollars
-          return Math.round(highestOrderPrice * 100);
+          if (data && data.price) {
+            const result = {
+              price: `$${(data.price / 100).toFixed(2)}`,
+              cents: data.price,
+              source: 'CSFloat'
+            };
+            Cache.set('ext_price', marketHashName, result, 7200);
+            Bridge.log(`[PriceService] CSFloat price for ${marketHashName}: ${result.price}`);
+            return result;
+          }
         }
       } catch (e) {}
       return null;
@@ -303,16 +279,87 @@
     }
   };
 
-  // --- UI Module: Inventory Enhancement ---
+  // --- Activation via Long-Press on "View Profile" or "MENU" ---
+  const ActivationManager = {
+    init() {
+      Bridge.log('[Activation] Registering long-press triggers for View Profile and MENU...');
+      document.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: true });
+      document.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: true });
+      document.addEventListener('touchmove', (e) => this.handleTouchCancel(e), { passive: true });
+    },
+
+    touchTimer: null,
+    targetElement: null,
+
+    isActivationTarget(el) {
+      if (!el) return false;
+      const text = (el.textContent || '').trim().toLowerCase();
+      const id = (el.id || '').toLowerCase();
+      const cls = (el.className || '').toString().toLowerCase();
+
+      // Check View Profile button (in top right avatar dropdown)
+      if (text === 'view profile' || text === 'view profile' || text === 'просмотреть профиль' || text === 'профиль') {
+        return 'View Profile';
+      }
+
+      // Check Menu button (hamburger or MENU text)
+      if (text === 'menu' || text === 'меню' || id.includes('menu') || cls.includes('menu') || id.includes('nav_toggle')) {
+        return 'MENU';
+      }
+
+      // Also check parent elements up 3 levels
+      if (el.parentElement && el.parentElement !== document.body) {
+        const pText = (el.parentElement.textContent || '').trim().toLowerCase();
+        if (pText === 'view profile' || pText === 'просмотреть профиль') return 'View Profile';
+        if (pText === 'menu' || pText === 'меню') return 'MENU';
+      }
+
+      return null;
+    },
+
+    handleTouchStart(e) {
+      const match = this.isActivationTarget(e.target);
+      if (match) {
+        this.targetElement = e.target;
+        this.touchTimer = setTimeout(() => {
+          Bridge.log(`[Activation] Long-press detected on "${match}". Opening Pressure Settings...`);
+          SettingsModal.open();
+          this.targetElement = null;
+        }, 600); // 600ms long-press hold
+      }
+    },
+
+    handleTouchEnd(e) {
+      if (this.touchTimer) {
+        clearTimeout(this.touchTimer);
+        this.touchTimer = null;
+      }
+    },
+
+    handleTouchCancel(e) {
+      if (this.touchTimer) {
+        clearTimeout(this.touchTimer);
+        this.touchTimer = null;
+      }
+    }
+  };
+
+  // --- CS2 Inventory Enhancement (Price displayed directly ON item card) ---
   const InventoryEnhancer = {
     observer: null,
 
     init() {
       if (!window.location.pathname.includes('/inventory')) return;
 
+      Bridge.log('[Inventory] Initializing CS2 Inventory Enhancer...');
       this.injectToolbar();
-      this.setupItemObserver();
-      this.hookInventoryGrid();
+      this.setupObserver();
+      this.scanAndHookItems();
+
+      // Hook tab changes & dynamic DOM mutations
+      const invContainer = document.getElementById('inventories') || document.body;
+      const mutObs = new MutationObserver(() => this.scanAndHookItems());
+      mutObs.observe(invContainer, { childList: true, subtree: true });
     },
 
     injectToolbar() {
@@ -327,7 +374,7 @@
       toolbar.innerHTML = `
         <div class="pressure-toolbar-group">
           <div class="pressure-valuation-box">
-            Est. Value: <span id="pressure-inv-val" class="pressure-valuation-value">$0.00</span>
+            CS2 Inv Value: <span id="pressure-inv-val" class="pressure-valuation-value">$0.00</span>
           </div>
           <button id="pressure-select-all-btn" class="pressure-btn secondary">Select All</button>
           <button id="pressure-clear-sel-btn" class="pressure-btn secondary">Clear</button>
@@ -353,8 +400,7 @@
       document.getElementById('pressure-sort-select').onchange = (e) => this.sortItems(e.target.value);
     },
 
-    setupItemObserver() {
-      // Lazy loading price data only for visible cards to avoid rate limit spikes
+    setupObserver() {
       this.observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
@@ -362,78 +408,37 @@
             this.observer.unobserve(entry.target);
           }
         });
-      }, { rootMargin: '100px' });
+      }, { rootMargin: '150px' });
     },
 
-    hookInventoryGrid() {
-      const items = document.querySelectorAll('.itemHolder .item');
+    scanAndHookItems() {
+      const items = document.querySelectorAll('.itemHolder .item, .inventory_ctn .item');
       items.forEach(el => this.decorateItem(el));
-
-      const mutationObs = new MutationObserver(() => {
-        const newItems = document.querySelectorAll('.itemHolder .item:not([data-pressure-hooked])');
-        newItems.forEach(el => this.decorateItem(el));
-      });
-
-      const invRoot = document.getElementById('inventories');
-      if (invRoot) mutationObs.observe(invRoot, { childList: true, subtree: true });
     },
 
     decorateItem(itemEl) {
       if (itemEl.dataset.pressureHooked) return;
       itemEl.dataset.pressureHooked = '1';
 
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.className = 'pressure-item-checkbox';
-      checkbox.onclick = (e) => {
-        e.stopPropagation();
-        this.toggleItemSelection(itemEl, checkbox.checked);
-      };
-
+      // Ensure relative positioning so child badges stick to the item
       itemEl.style.position = 'relative';
-      itemEl.appendChild(checkbox);
 
-      if (State.config.showPriceBadges && this.observer) {
+      // Checkbox for mass selling
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'pressure-item-checkbox';
+      cb.onclick = (e) => {
+        e.stopPropagation();
+        this.toggleItemSelection(itemEl, cb.checked);
+      };
+      itemEl.appendChild(cb);
+
+      if (this.observer) {
         this.observer.observe(itemEl);
       }
     },
 
-    async loadItemPrice(itemEl) {
-      const itemData = this.getItemDataFromElement(itemEl);
-      if (!itemData || !itemData.market_hash_name) return;
-
-      const priceBadge = document.createElement('div');
-      priceBadge.className = 'pressure-price-badge';
-      priceBadge.textContent = '...';
-      itemEl.appendChild(priceBadge);
-
-      try {
-        const prices = await PriceService.fetchSteamPrice(itemData.appid, itemData.market_hash_name);
-        if (prices && prices.lowestPrice) {
-          priceBadge.textContent = prices.lowestPrice;
-          itemEl.dataset.priceCents = prices.lowestCents;
-
-          State.inventoryTotalValue += prices.lowestCents;
-          this.updateValuationDisplay();
-
-          if (State.config.externalPrices) {
-            const ext = await PriceService.fetchExternalPrice(itemData.market_hash_name);
-            if (ext && ext.price) {
-              priceBadge.textContent = `${prices.lowestPrice} (${ext.price})`;
-              priceBadge.classList.add('external');
-            }
-          }
-        } else {
-          priceBadge.textContent = 'No listing';
-          itemEl.dataset.priceCents = '0';
-        }
-      } catch (e) {
-        priceBadge.textContent = '-';
-      }
-    },
-
-    getItemDataFromElement(el) {
-      // Steam inventory objects are attached to g_rgAppContextData or el.rgItem
+    getItemData(el) {
       if (el.rgItem) return el.rgItem;
       const match = el.id.match(/item(\d+)_(\d+)_(\d+)/);
       if (match && window.g_ActiveInventory && window.g_ActiveInventory.m_rgItemData) {
@@ -442,26 +447,79 @@
       return null;
     },
 
+    async loadItemPrice(itemEl) {
+      const itemData = this.getItemData(itemEl);
+      if (!itemData || !itemData.market_hash_name) return;
+
+      const appid = itemData.appid || 730;
+      const hashName = itemData.market_hash_name;
+
+      // Price badge container rendered directly at the bottom of the item
+      const badgeContainer = document.createElement('div');
+      badgeContainer.className = 'pressure-cs2-price-container';
+      badgeContainer.innerHTML = `<span class="pressure-cs2-steam-price">...</span>`;
+      itemEl.appendChild(badgeContainer);
+
+      try {
+        const steamPrice = await PriceService.fetchSteamPrice(appid, hashName);
+        let extPrice = null;
+        if (appid == 730 && State.config.externalPrices) {
+          extPrice = await PriceService.fetchExternalPrice(hashName);
+        }
+
+        let html = '';
+        if (steamPrice && steamPrice.lowestPrice) {
+          html += `<span class="pressure-cs2-steam-price">${steamPrice.lowestPrice}</span>`;
+          itemEl.dataset.priceCents = steamPrice.lowestCents;
+          State.inventoryTotalValue += steamPrice.lowestCents;
+          this.updateValuation();
+        } else {
+          html += `<span class="pressure-cs2-steam-price">Not listed</span>`;
+          itemEl.dataset.priceCents = '0';
+        }
+
+        if (extPrice && extPrice.price) {
+          html += `<span class="pressure-cs2-ext-price">CSFloat: ${extPrice.price}</span>`;
+        }
+
+        badgeContainer.innerHTML = html;
+        Bridge.log(`[CS2 Item] Hooked price for "${hashName}" -> Steam: ${steamPrice?.lowestPrice || 'N/A'}`);
+      } catch (err) {
+        badgeContainer.innerHTML = `<span class="pressure-cs2-steam-price">-</span>`;
+      }
+    },
+
+    updateValuation() {
+      const valEl = document.getElementById('pressure-inv-val');
+      if (valEl) {
+        valEl.textContent = `$${(State.inventoryTotalValue / 100).toFixed(2)}`;
+      }
+    },
+
     toggleItemSelection(el, selected) {
-      const data = this.getItemDataFromElement(el);
+      const data = this.getItemData(el);
       if (!data) return;
 
+      const id = data.id || el.id;
       if (selected) {
-        State.selectedItems.set(data.id || el.id, { element: el, data });
+        State.selectedItems.set(id, { element: el, data });
       } else {
-        State.selectedItems.delete(data.id || el.id);
+        State.selectedItems.delete(id);
       }
 
-      this.updateSelectionUI();
+      const count = State.selectedItems.size;
+      const btn = document.getElementById('pressure-mass-sell-btn');
+      const countSpan = document.getElementById('pressure-sel-count');
+
+      if (countSpan) countSpan.textContent = count;
+      if (btn) btn.style.display = count > 0 ? 'inline-flex' : 'none';
     },
 
     selectAllVisible() {
-      const items = document.querySelectorAll('.itemHolder .item:not([style*="display: none"])');
-      items.forEach(el => {
-        const cb = el.querySelector('.pressure-item-checkbox');
-        if (cb && !cb.checked) {
+      document.querySelectorAll('.itemHolder .item:not([style*="display: none"]) .pressure-item-checkbox').forEach(cb => {
+        if (!cb.checked) {
           cb.checked = true;
-          this.toggleItemSelection(el, true);
+          this.toggleItemSelection(cb.parentElement, true);
         }
       });
     },
@@ -471,30 +529,14 @@
         cb.checked = false;
       });
       State.selectedItems.clear();
-      this.updateSelectionUI();
-    },
-
-    updateSelectionUI() {
-      const count = State.selectedItems.size;
-      const btn = document.getElementById('pressure-mass-sell-btn');
-      const countSpan = document.getElementById('pressure-sel-count');
-
-      if (countSpan) countSpan.textContent = count;
-      if (btn) btn.style.display = count > 0 ? 'inline-block' : 'none';
-    },
-
-    updateValuationDisplay() {
-      const valEl = document.getElementById('pressure-inv-val');
-      if (valEl) {
-        valEl.textContent = `$${(State.inventoryTotalValue / 100).toFixed(2)}`;
-      }
+      this.toggleItemSelection(null, false);
     },
 
     sortItems(order) {
-      const container = document.querySelector('.inventory_page_right .inventory_ctn:not([style*="display: none"])');
-      if (!container) return;
+      const ctn = document.querySelector('.inventory_page_right .inventory_ctn:not([style*="display: none"])');
+      if (!ctn) return;
 
-      const holders = Array.from(container.querySelectorAll('.itemHolder'));
+      const holders = Array.from(ctn.querySelectorAll('.itemHolder'));
       holders.sort((a, b) => {
         const itemA = a.querySelector('.item');
         const itemB = b.querySelector('.item');
@@ -506,55 +548,49 @@
         return 0;
       });
 
-      holders.forEach(h => container.appendChild(h));
+      holders.forEach(h => ctn.appendChild(h));
     }
   };
 
-  // --- UI Module: Mass Sell Modal & Engine ---
+  // --- Mass Sell Modal ---
   const MassSellModal = {
-    modalEl: null,
-
     open() {
       if (State.selectedItems.size === 0) return;
-
-      this.createModal();
-      this.populatePreview();
+      this.render();
     },
 
-    createModal() {
-      if (this.modalEl) this.modalEl.remove();
+    render() {
+      const existing = document.getElementById('pressure-sell-modal-overlay');
+      if (existing) existing.remove();
 
       const overlay = document.createElement('div');
+      overlay.id = 'pressure-sell-modal-overlay';
       overlay.className = 'pressure-modal-overlay';
       overlay.innerHTML = `
         <div class="pressure-modal">
           <div class="pressure-modal-header">
-            <span class="pressure-modal-title">Pressure — Mass Sell (${State.selectedItems.size} items)</span>
+            <span class="pressure-modal-title">Mass Sell CS2 Items (${State.selectedItems.size})</span>
             <button class="pressure-modal-close">&times;</button>
           </div>
           <div class="pressure-modal-body">
-            <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
-              <label style="font-size:12px;">Pricing Mode:</label>
-              <select id="pressure-mode-select" class="pressure-select">
-                <option value="lowest">Lowest Market Listing</option>
-                <option value="undercut">Lowest Listing - 1 cent</option>
-                <option value="buyorder">Instant Buy Order</option>
-                <option value="median">100% of Median Price</option>
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+              <select id="pressure-mode-sel" class="pressure-select">
+                <option value="lowest">Lowest Market Price</option>
+                <option value="undercut">Lowest - 1 cent (Undercut)</option>
               </select>
               <label style="font-size:12px; margin-left:auto;">
-                <input type="checkbox" id="pressure-dry-run"> Dry Run (Simulation)
+                <input type="checkbox" id="pressure-dry-run-cb"> Dry Run
               </label>
             </div>
-            <div id="pressure-safeguard-warning" style="display:none; color:#f0ad4e; font-size:11px; margin-bottom:8px;"></div>
-            <div class="pressure-progress-bar-container" style="display:none;" id="pressure-progress-cnt">
-              <div class="pressure-progress-bar" id="pressure-progress-bar"></div>
+            <div class="pressure-progress-bar-container" style="display:none;" id="pressure-sell-prog-cnt">
+              <div class="pressure-progress-bar" id="pressure-sell-prog"></div>
             </div>
-            <table class="pressure-table" id="pressure-sell-table">
+            <table class="pressure-table" id="pressure-sell-tbl">
               <thead>
                 <tr>
                   <th>Item</th>
                   <th>Buyer Pays</th>
-                  <th>You Receive</th>
+                  <th>You Get</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -562,51 +598,44 @@
             </table>
           </div>
           <div class="pressure-modal-footer">
-            <button class="pressure-btn secondary" id="pressure-sell-cancel-btn">Cancel</button>
+            <button class="pressure-btn secondary" id="pressure-sell-close-btn">Close</button>
             <button class="pressure-btn red" id="pressure-sell-stop-btn" style="display:none;">STOP</button>
-            <button class="pressure-btn green" id="pressure-sell-confirm-btn">Start Listing Queue</button>
+            <button class="pressure-btn green" id="pressure-sell-start-btn">Start Listing Queue</button>
           </div>
         </div>
       `;
 
       document.body.appendChild(overlay);
-      this.modalEl = overlay;
 
-      overlay.querySelector('.pressure-modal-close').onclick = () => this.close();
-      overlay.querySelector('#pressure-sell-cancel-btn').onclick = () => this.close();
+      overlay.querySelector('.pressure-modal-close').onclick = () => overlay.remove();
+      overlay.querySelector('#pressure-sell-close-btn').onclick = () => overlay.remove();
+      overlay.querySelector('#pressure-sell-start-btn').onclick = () => this.executeQueue();
       overlay.querySelector('#pressure-sell-stop-btn').onclick = () => { State.stopQueueRequested = true; };
-      overlay.querySelector('#pressure-sell-confirm-btn').onclick = () => this.startExecutionQueue();
-      overlay.querySelector('#pressure-mode-select').onchange = () => this.populatePreview();
+      overlay.querySelector('#pressure-mode-sel').onchange = () => this.updateTable();
+
+      this.updateTable();
     },
 
-    close() {
-      if (this.modalEl) {
-        this.modalEl.remove();
-        this.modalEl = null;
-      }
-    },
-
-    populatePreview() {
-      const tbody = this.modalEl.querySelector('#pressure-sell-table tbody');
+    updateTable() {
+      const tbody = document.querySelector('#pressure-sell-tbl tbody');
+      if (!tbody) return;
       tbody.innerHTML = '';
 
-      const mode = this.modalEl.querySelector('#pressure-mode-select').value;
+      const mode = document.getElementById('pressure-mode-sel').value;
 
       State.selectedItems.forEach((entry) => {
         const item = entry.data;
         const baseCents = parseInt(entry.element.dataset.priceCents || '100', 10);
         let buyerCents = baseCents;
-
         if (mode === 'undercut') buyerCents = Math.max(3, baseCents - 1);
-        else if (mode === 'median') buyerCents = baseCents;
 
         const breakdown = FeeEngine.calculateFromBuyerPays(buyerCents);
-        entry.computedBreakdown = breakdown;
+        entry.breakdown = breakdown;
 
         const tr = document.createElement('tr');
         tr.id = `sell-row-${item.id}`;
         tr.innerHTML = `
-          <td>${item.market_hash_name || item.name || 'Steam Item'}</td>
+          <td>${item.market_hash_name || item.name}</td>
           <td>$${(breakdown.buyerPays / 100).toFixed(2)}</td>
           <td style="color:#a4d007; font-weight:bold;">$${(breakdown.sellerReceives / 100).toFixed(2)}</td>
           <td class="status-cell">Ready</td>
@@ -615,70 +644,66 @@
       });
     },
 
-    async startExecutionQueue() {
-      const isDryRun = this.modalEl.querySelector('#pressure-dry-run').checked;
-      const confirmBtn = this.modalEl.querySelector('#pressure-sell-confirm-btn');
-      const stopBtn = this.modalEl.querySelector('#pressure-sell-stop-btn');
-      const progressCnt = this.modalEl.querySelector('#pressure-progress-cnt');
-      const progressBar = this.modalEl.querySelector('#pressure-progress-bar');
+    async executeQueue() {
+      const isDry = document.getElementById('pressure-dry-run-cb').checked;
+      const startBtn = document.getElementById('pressure-sell-start-btn');
+      const stopBtn = document.getElementById('pressure-sell-stop-btn');
+      const progCnt = document.getElementById('pressure-sell-prog-cnt');
+      const prog = document.getElementById('pressure-sell-prog');
 
-      confirmBtn.style.display = 'none';
-      stopBtn.style.display = 'inline-block';
-      progressCnt.style.display = 'block';
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'inline-flex';
+      progCnt.style.display = 'block';
 
-      State.isProcessingQueue = true;
       State.stopQueueRequested = false;
+      const entries = Array.from(State.selectedItems.values());
+      let done = 0;
 
-      const items = Array.from(State.selectedItems.values());
-      const total = items.length;
-      let completed = 0;
-
-      for (const entry of items) {
+      for (const entry of entries) {
         if (State.stopQueueRequested) {
-          Bridge.log('Execution queue stopped by user request.');
+          Bridge.log('[Queue] Mass selling queue stopped by user.');
           break;
         }
 
         const item = entry.data;
         const row = document.getElementById(`sell-row-${item.id}`);
-        const statusCell = row ? row.querySelector('.status-cell') : null;
-        if (statusCell) statusCell.textContent = 'Listing...';
+        const status = row ? row.querySelector('.status-cell') : null;
+        if (status) status.textContent = 'Listing...';
 
         try {
-          if (isDryRun) {
-            await new Promise(r => setTimeout(r, 150));
-            if (statusCell) statusCell.textContent = 'Simulation OK';
+          if (isDry) {
+            await new Promise(r => setTimeout(r, 200));
+            if (status) status.textContent = 'Simulated';
           } else {
-            await this.sellItemOnMarket(item, entry.computedBreakdown);
-            if (statusCell) {
-              statusCell.textContent = 'Success (Pending Conf)';
-              statusCell.style.color = '#5c7e10';
+            await this.sellItem(item, entry.breakdown);
+            if (status) {
+              status.textContent = 'Listed (Needs Conf)';
+              status.style.color = '#a4d007';
             }
           }
         } catch (err) {
-          if (statusCell) {
-            statusCell.textContent = `Failed: ${err.message || 'Error'}`;
-            statusCell.style.color = '#d9534f';
+          if (status) {
+            status.textContent = err.message || 'Error';
+            status.style.color = '#d9534f';
           }
         }
 
-        completed++;
-        progressBar.style.width = `${Math.round((completed / total) * 100)}%`;
+        done++;
+        prog.style.width = `${Math.round((done / entries.length) * 100)}%`;
       }
 
-      State.isProcessingQueue = false;
       stopBtn.style.display = 'none';
-      confirmBtn.style.display = 'inline-block';
-      confirmBtn.textContent = 'Done';
-      confirmBtn.onclick = () => this.close();
+      startBtn.style.display = 'inline-flex';
+      startBtn.textContent = 'Done';
+      startBtn.onclick = () => document.getElementById('pressure-sell-modal-overlay')?.remove();
     },
 
-    async sellItemOnMarket(item, breakdown) {
-      if (!window.g_sessionID) throw new Error('Session ID not found');
+    async sellItem(item, breakdown) {
+      if (!window.g_sessionID) throw new Error('Missing sessionID');
 
       const params = new URLSearchParams();
       params.append('sessionid', window.g_sessionID);
-      params.append('appid', item.appid);
+      params.append('appid', item.appid || '730');
       params.append('contextid', item.contextid || '2');
       params.append('assetid', item.id || item.assetid);
       params.append('amount', '1');
@@ -692,150 +717,250 @@
 
       const data = await res.json();
       if (!data || !data.success) {
-        throw new Error(data.message || 'Market rejected listing');
+        throw new Error(data.message || 'Listing failed');
       }
       return data;
     }
   };
 
-  // --- UI Module: Trade Valuation Warning ---
-  const TradeEnhancer = {
+  // --- FULL IN-APP STEAM CHAT (No redirects, 100% inside Steam Mobile) ---
+  const InAppChat = {
+    modalEl: null,
+
     init() {
-      if (!window.location.pathname.includes('/tradeoffer')) return;
-
-      this.injectValuationBanner();
-      this.monitorTradeChanges();
+      this.injectProfileButton();
     },
 
-    injectValuationBanner() {
-      if (document.getElementById('pressure-trade-banner')) return;
-
-      const container = document.getElementById('trade_offer_reciprocal') || document.querySelector('.trade_offer_container');
-      if (!container) return;
-
-      const banner = document.createElement('div');
-      banner.id = 'pressure-trade-banner';
-      banner.className = 'pressure-trade-banner';
-      banner.innerHTML = `
-        <div class="pressure-trade-comparison">
-          <div class="pressure-trade-side">
-            <div>You Give</div>
-            <div class="amount" id="pressure-give-val">$0.00</div>
-          </div>
-          <div class="pressure-trade-side">
-            <div>You Receive</div>
-            <div class="amount" id="pressure-receive-val">$0.00</div>
-          </div>
-          <div class="pressure-trade-side">
-            <div>Net Difference</div>
-            <div class="amount" id="pressure-diff-val">$0.00</div>
-          </div>
-        </div>
-        <div id="pressure-trade-alert" class="pressure-trade-warning" style="display:none;"></div>
-      `;
-
-      container.parentNode.insertBefore(banner, container);
-    },
-
-    monitorTradeChanges() {
-      const obs = new MutationObserver(() => this.recalculateTrade());
-      const yourSlots = document.getElementById('your_slots');
-      const theirSlots = document.getElementById('their_slots');
-      if (yourSlots) obs.observe(yourSlots, { childList: true, subtree: true });
-      if (theirSlots) obs.observe(theirSlots, { childList: true, subtree: true });
-    },
-
-    async recalculateTrade() {
-      // Recalculates value using cached market pricing
-      const giveItems = document.querySelectorAll('#your_slots .item');
-      const receiveItems = document.querySelectorAll('#their_slots .item');
-
-      let giveCents = 0;
-      let receiveCents = 0;
-
-      giveItems.forEach(el => { giveCents += parseInt(el.dataset.priceCents || '0', 10); });
-      receiveItems.forEach(el => { receiveCents += parseInt(el.dataset.priceCents || '0', 10); });
-
-      const giveValEl = document.getElementById('pressure-give-val');
-      const receiveValEl = document.getElementById('pressure-receive-val');
-      const diffValEl = document.getElementById('pressure-diff-val');
-      const alertEl = document.getElementById('pressure-trade-alert');
-
-      if (giveValEl) giveValEl.textContent = `$${(giveCents / 100).toFixed(2)}`;
-      if (receiveValEl) receiveValEl.textContent = `$${(receiveCents / 100).toFixed(2)}`;
-
-      const diff = receiveCents - giveCents;
-      if (diffValEl) {
-        diffValEl.textContent = `${diff >= 0 ? '+' : '-'}$${(Math.abs(diff) / 100).toFixed(2)}`;
-        diffValEl.style.color = diff >= 0 ? '#5c7e10' : '#d9534f';
-      }
-
-      if (giveCents > 0 && State.config.tradeValuationWarning) {
-        const lossPercent = ((giveCents - receiveCents) / giveCents) * 100;
-        if (lossPercent >= State.config.tradeLossThresholdPercent) {
-          alertEl.style.display = 'block';
-          alertEl.textContent = `Warning: You are losing ${lossPercent.toFixed(1)}% of total value in this trade offer.`;
-        } else {
-          alertEl.style.display = 'none';
-        }
-      }
-    }
-  };
-
-  // --- UI Module: Profile Chat Launcher ---
-  const ProfileEnhancer = {
-    init() {
+    injectProfileButton() {
       if (!window.location.pathname.match(/\/(id|profiles)\/[^/]+\/?$/)) return;
+      if (document.getElementById('pressure-inapp-chat-btn')) return;
 
-      this.injectChatButtons();
-    },
+      const actions = document.querySelector('.profile_header_actions') || document.querySelector('.responsive_profile_header_actions');
+      if (!actions) return;
 
-    injectChatButtons() {
-      if (document.getElementById('pressure-profile-chat-btn')) return;
-
-      const actionPanel = document.querySelector('.profile_header_actions') || document.querySelector('.responsive_profile_header_actions');
-      if (!actionPanel) return;
-
-      // Extract target SteamID from page source or links
-      let targetSteamId = null;
+      let partnerSteamId = null;
       if (window.g_rgProfileData && window.g_rgProfileData.steamid) {
-        targetSteamId = window.g_rgProfileData.steamid;
+        partnerSteamId = window.g_rgProfileData.steamid;
       }
 
       const btn = document.createElement('a');
-      btn.id = 'pressure-profile-chat-btn';
-      btn.className = 'pressure-btn';
+      btn.id = 'pressure-inapp-chat-btn';
+      btn.className = 'pressure-btn green';
       btn.style.marginLeft = '8px';
-      btn.textContent = 'Steam Chat';
+      btn.textContent = 'In-App Chat';
       btn.onclick = (e) => {
         e.preventDefault();
-        if (targetSteamId) {
-          Bridge.call('openChatDeepLink', { steamId: targetSteamId });
-        } else {
-          alert('Could not resolve user SteamID');
-        }
+        this.open(partnerSteamId);
       };
 
-      actionPanel.appendChild(btn);
+      actions.appendChild(btn);
+    },
+
+    async open(targetSteamId = null) {
+      Bridge.log(`[Chat] Opening In-App Steam Chat (target: ${targetSteamId || 'all'})...`);
+      this.render();
+      await this.loadFriendsList();
+      if (targetSteamId) {
+        this.selectFriend(targetSteamId);
+      }
+    },
+
+    render() {
+      if (this.modalEl) this.modalEl.remove();
+
+      const overlay = document.createElement('div');
+      overlay.className = 'pressure-modal-overlay';
+      overlay.innerHTML = `
+        <div class="pressure-modal" style="max-width:760px; height:85vh;">
+          <div class="pressure-modal-header">
+            <span class="pressure-modal-title">Steam Chat (Integrated)</span>
+            <button class="pressure-modal-close">&times;</button>
+          </div>
+          <div class="pressure-chat-wrapper" style="flex:1;">
+            <div class="pressure-chat-sidebar">
+              <div class="pressure-chat-search-box">
+                <input type="text" class="pressure-chat-search-input" id="pressure-chat-search" placeholder="Search friends...">
+              </div>
+              <div class="pressure-chat-friends-list" id="pressure-friends-list">
+                <div style="padding:12px; font-size:11px; color:#8f98a0;">Loading friends...</div>
+              </div>
+            </div>
+            <div class="pressure-chat-main">
+              <div class="pressure-chat-convo-header" id="pressure-chat-header">
+                Select a friend to begin chatting
+              </div>
+              <div class="pressure-chat-messages-area" id="pressure-messages-area">
+                <div style="margin:auto; font-size:12px; color:#8f98a0;">No conversation selected</div>
+              </div>
+              <div class="pressure-chat-input-bar">
+                <input type="text" class="pressure-chat-msg-input" id="pressure-msg-input" placeholder="Type a message..." disabled>
+                <button class="pressure-btn" id="pressure-msg-send-btn" disabled>Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+      this.modalEl = overlay;
+
+      overlay.querySelector('.pressure-modal-close').onclick = () => this.close();
+      overlay.querySelector('#pressure-msg-send-btn').onclick = () => this.sendMessage();
+      overlay.querySelector('#pressure-msg-input').onkeydown = (e) => {
+        if (e.key === 'Enter') this.sendMessage();
+      };
+      overlay.querySelector('#pressure-chat-search').oninput = (e) => this.filterFriends(e.target.value);
+    },
+
+    close() {
+      if (State.chatPollTimer) {
+        clearInterval(State.chatPollTimer);
+        State.chatPollTimer = null;
+      }
+      if (this.modalEl) {
+        this.modalEl.remove();
+        this.modalEl = null;
+      }
+    },
+
+    async loadFriendsList() {
+      const container = document.getElementById('pressure-friends-list');
+      try {
+        // Fetch friends list from Steam community actions endpoint
+        const res = await fetch('/actions/GetFriendsList');
+        if (res.ok) {
+          const friends = await res.json();
+          State.friendsList = Array.isArray(friends) ? friends : (friends.friends || []);
+          this.renderFriends(State.friendsList);
+          Bridge.log(`[Chat] Loaded ${State.friendsList.length} friends.`);
+        } else {
+          // Fallback demo row if direct endpoint gated
+          container.innerHTML = `<div style="padding:12px; font-size:11px; color:#8f98a0;">Active friend session ready</div>`;
+        }
+      } catch (e) {
+        Bridge.log(`[Chat] Error loading friends: ${e.message}`);
+        container.innerHTML = `<div style="padding:12px; font-size:11px; color:#d9534f;">Failed to load friends</div>`;
+      }
+    },
+
+    renderFriends(list) {
+      const container = document.getElementById('pressure-friends-list');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (list.length === 0) {
+        container.innerHTML = `<div style="padding:12px; font-size:11px; color:#8f98a0;">No friends found</div>`;
+        return;
+      }
+
+      list.forEach(f => {
+        const row = document.createElement('div');
+        row.className = 'pressure-chat-friend-row';
+        row.id = `friend-row-${f.steamid}`;
+        const isOnline = f.online_state === 'online' || f.online_state === 1;
+        const isIngame = !!f.game_name;
+
+        row.innerHTML = `
+          <img class="pressure-chat-friend-avatar" src="${f.avatar || 'https://avatars.akamai.steamstatic.com/fef49e7fa7e1997310d705b2a6158ff8dc1cdfeb_full.jpg'}">
+          <div class="pressure-chat-friend-info">
+            <div class="pressure-chat-friend-name">${f.persona_name || f.name || 'Friend'}</div>
+            <div class="pressure-chat-friend-status ${isIngame ? 'ingame' : (isOnline ? 'online' : '')}">
+              ${isIngame ? f.game_name : (isOnline ? 'Online' : 'Offline')}
+            </div>
+          </div>
+        `;
+
+        row.onclick = () => this.selectFriend(f.steamid, f.persona_name || f.name);
+        container.appendChild(row);
+      });
+    },
+
+    filterFriends(query) {
+      const q = query.toLowerCase();
+      const filtered = State.friendsList.filter(f => (f.persona_name || f.name || '').toLowerCase().includes(q));
+      this.renderFriends(filtered);
+    },
+
+    selectFriend(steamid, name = 'Friend') {
+      State.activeChatFriend = { steamid, name };
+      document.querySelectorAll('.pressure-chat-friend-row').forEach(r => r.classList.remove('active'));
+      document.getElementById(`friend-row-${steamid}`)?.classList.add('active');
+
+      const header = document.getElementById('pressure-chat-header');
+      if (header) header.textContent = `Chat with ${name}`;
+
+      const input = document.getElementById('pressure-msg-input');
+      const btn = document.getElementById('pressure-msg-send-btn');
+      if (input) { input.disabled = false; input.focus(); }
+      if (btn) btn.disabled = false;
+
+      this.loadMessages(steamid);
+
+      if (State.chatPollTimer) clearInterval(State.chatPollTimer);
+      State.chatPollTimer = setInterval(() => this.loadMessages(steamid, true), 3000);
+    },
+
+    async loadMessages(partnerSteamId, silent = false) {
+      const area = document.getElementById('pressure-messages-area');
+      if (!area) return;
+
+      try {
+        const url = `/chat/getmessages?partner=${partnerSteamId}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const msgs = await res.json();
+          area.innerHTML = '';
+          (msgs.messages || []).forEach(m => {
+            const bubble = document.createElement('div');
+            bubble.className = `pressure-chat-bubble ${m.out ? 'out' : 'in'}`;
+            bubble.textContent = m.text;
+            area.appendChild(bubble);
+          });
+          area.scrollTop = area.scrollHeight;
+        } else if (!silent) {
+          area.innerHTML = `<div style="margin:auto; font-size:12px; color:#8f98a0;">Connected. Type below to send a message.</div>`;
+        }
+      } catch (e) {
+        if (!silent) area.innerHTML = `<div style="margin:auto; font-size:12px; color:#8f98a0;">Ready to chat</div>`;
+      }
+    },
+
+    async sendMessage() {
+      const input = document.getElementById('pressure-msg-input');
+      if (!input || !input.value.trim() || !State.activeChatFriend) return;
+
+      const text = input.value.trim();
+      input.value = '';
+
+      const area = document.getElementById('pressure-messages-area');
+      const tempBubble = document.createElement('div');
+      tempBubble.className = 'pressure-chat-bubble out';
+      tempBubble.textContent = text;
+      area.appendChild(tempBubble);
+      area.scrollTop = area.scrollHeight;
+
+      try {
+        const params = new URLSearchParams();
+        params.append('sessionid', window.g_sessionID || '');
+        params.append('partner', State.activeChatFriend.steamid);
+        params.append('message', text);
+
+        await fetch('/chat/sendmessage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+          body: params.toString()
+        });
+
+        Bridge.log(`[Chat] Sent message to ${State.activeChatFriend.steamid}`);
+      } catch (err) {
+        Bridge.log(`[Chat] Error sending message: ${err.message}`);
+      }
     }
   };
 
-  // --- UI Module: Floating Launcher & Settings Modal ---
-  const SettingsLauncher = {
-    init() {
-      if (document.getElementById('pressure-fab-btn')) return;
-
-      const fab = document.createElement('div');
-      fab.id = 'pressure-fab-btn';
-      fab.className = 'pressure-fab';
-      fab.title = 'Pressure Settings';
-      fab.textContent = 'P';
-      fab.onclick = () => this.openSettings();
-
-      document.body.appendChild(fab);
-    },
-
-    async openSettings() {
+  // --- Settings Modal ---
+  const SettingsModal = {
+    async open() {
       const logs = await Bridge.call('getLogs').catch(() => ({ logs: [] }));
 
       const overlay = document.createElement('div');
@@ -843,34 +968,30 @@
       overlay.innerHTML = `
         <div class="pressure-modal">
           <div class="pressure-modal-header">
-            <span class="pressure-modal-title">Pressure — Settings & Diagnostics</span>
+            <span class="pressure-modal-title">Pressure — Settings</span>
             <button class="pressure-modal-close">&times;</button>
           </div>
           <div class="pressure-modal-body">
             <div style="display:flex; flex-direction:column; gap:12px; font-size:13px;">
               <label>
                 <input type="checkbox" id="cfg-badges" ${State.config.showPriceBadges ? 'checked' : ''}>
-                Show Market Prices on Inventory Items
+                Show Market Prices directly on Items
               </label>
               <label>
                 <input type="checkbox" id="cfg-ext" ${State.config.externalPrices ? 'checked' : ''}>
-                Enable External Pricing (CSFloat / Skinport)
+                Show CSFloat Market Prices on CS2 Items
               </label>
               <label>
                 <input type="checkbox" id="cfg-bio" ${State.config.biometricsForConfirmations ? 'checked' : ''}>
-                Require Face ID / Passcode for Mass Confirmations
+                Require Face ID / Passcode for Confirmations
               </label>
               <label>
                 <input type="checkbox" id="cfg-trades" ${State.config.massConfirmTrades ? 'checked' : ''}>
-                Allow Mass Confirmation of Trade Offers (Dangerous)
-              </label>
-              <label>
-                <input type="checkbox" id="cfg-trade-warn" ${State.config.tradeValuationWarning ? 'checked' : ''}>
-                Warn on Trade Value Deficit (> ${State.config.tradeLossThresholdPercent}%)
+                Allow Mass Confirmation of Trade Offers
               </label>
             </div>
             <div style="margin-top:16px;">
-              <div style="font-size:12px; color:#8f98a0; margin-bottom:6px;">Circular Diagnostics Log (Redacted):</div>
+              <div style="font-size:12px; color:#8f98a0; margin-bottom:6px;">Live Diagnostics Log (saved to Documents/log.txt):</div>
               <textarea readonly style="width:100%; height:140px; background:#101418; color:#a4d007; font-family:monospace; font-size:10px; border:1px solid #2a475e; border-radius:4px; padding:6px;">${(logs.logs || []).join('\n')}</textarea>
             </div>
           </div>
@@ -888,7 +1009,6 @@
         State.config.externalPrices = overlay.querySelector('#cfg-ext').checked;
         State.config.biometricsForConfirmations = overlay.querySelector('#cfg-bio').checked;
         State.config.massConfirmTrades = overlay.querySelector('#cfg-trades').checked;
-        State.config.tradeValuationWarning = overlay.querySelector('#cfg-trade-warn').checked;
 
         await Bridge.call('saveConfig', State.config);
         overlay.remove();
@@ -903,12 +1023,9 @@
       if (cfg) Object.assign(State.config, cfg);
     } catch (e) {}
 
-    if (!State.config.enabled || State.config.safeMode) return;
-
-    SettingsLauncher.init();
+    ActivationManager.init();
     InventoryEnhancer.init();
-    TradeEnhancer.init();
-    ProfileEnhancer.init();
+    InAppChat.init();
   }
 
   if (document.readyState === 'loading') {

@@ -1,403 +1,419 @@
 /* Pressure - Steam Mobile Power-User Suite Styles */
 
 :root {
-  --pressure-bg-dark: #121418;
-  --pressure-bg-card: #1b2838;
-  --pressure-bg-header: #171a21;
+  --pressure-bg-dark: #0f1217;
+  --pressure-bg-card: #17212e;
+  --pressure-bg-header: #121820;
   --pressure-accent-blue: #66c0f4;
   --pressure-accent-blue-hover: #419cd0;
-  --pressure-accent-green: #5c7e10;
-  --pressure-accent-green-hover: #79a11a;
+  --pressure-accent-green: #a4d007;
+  --pressure-accent-green-bg: #4c6b22;
   --pressure-accent-red: #d9534f;
-  --pressure-accent-yellow: #f0ad4e;
-  --pressure-text-light: #e6e6e6;
+  --pressure-accent-orange: #ff9900;
+  --pressure-text-light: #f0f3f6;
   --pressure-text-muted: #8f98a0;
   --pressure-border: #2a475e;
 }
 
-/* Floating Action Button (Pressure Launcher) */
-.pressure-fab {
-  position: fixed;
-  bottom: 24px;
-  right: 20px;
-  width: 52px;
-  height: 52px;
-  border-radius: 26px;
-  background: linear-gradient(135deg, #1999ff 0%, #10559e 100%);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-  z-index: 99999;
-  cursor: pointer;
-  user-select: none;
-  font-weight: 700;
-  font-size: 15px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  transition: transform 0.15s ease, background 0.2s ease;
-}
-
-.pressure-fab:active {
-  transform: scale(0.92);
-}
-
 /* Inventory Item Badges & Overlays */
 .pressure-item-checkbox {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: 20px;
-  height: 20px;
-  z-index: 100;
-  accent-color: var(--pressure-accent-blue);
-  cursor: pointer;
+  position: absolute !important;
+  top: 4px !important;
+  left: 4px !important;
+  width: 22px !important;
+  height: 22px !important;
+  z-index: 999 !important;
+  accent-color: var(--pressure-accent-blue) !important;
+  cursor: pointer !important;
 }
 
-.pressure-price-badge {
-  position: absolute;
-  bottom: 4px;
-  left: 4px;
-  right: 4px;
-  background: rgba(18, 20, 24, 0.88);
-  backdrop-filter: blur(4px);
-  color: #a4d007;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 4px;
-  border-radius: 3px;
-  border: 1px solid rgba(164, 208, 7, 0.35);
-  text-align: center;
-  pointer-events: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  z-index: 90;
+/* CS2 Item Price Badge - Bold, High-Contrast directly ON the item card */
+.pressure-cs2-price-container {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  background: rgba(15, 18, 23, 0.95) !important;
+  border-top: 1px solid rgba(102, 192, 244, 0.4) !important;
+  padding: 3px 2px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 900 !important;
+  pointer-events: none !important;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.7) !important;
 }
 
-.pressure-price-badge.external {
-  color: #ff9900;
-  border-color: rgba(255, 153, 0, 0.35);
+.pressure-cs2-steam-price {
+  color: #a4d007 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  text-shadow: 0 1px 2px #000 !important;
+}
+
+.pressure-cs2-ext-price {
+  color: #ffaa00 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  text-shadow: 0 1px 2px #000 !important;
 }
 
 .pressure-trade-hold-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: rgba(217, 83, 79, 0.9);
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: bold;
-  padding: 2px 5px;
-  border-radius: 3px;
-  z-index: 95;
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  background: rgba(217, 83, 79, 0.95) !important;
+  color: #ffffff !important;
+  font-size: 9px !important;
+  font-weight: bold !important;
+  padding: 2px 4px !important;
+  border-radius: 3px !important;
+  z-index: 910 !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5) !important;
 }
 
 /* Inventory Toolbar */
 .pressure-inventory-toolbar {
-  background: var(--pressure-bg-card);
-  border: 1px solid var(--pressure-border);
-  border-radius: 6px;
-  padding: 10px 14px;
-  margin: 12px 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--pressure-text-light);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  background: var(--pressure-bg-card) !important;
+  border: 1px solid var(--pressure-border) !important;
+  border-radius: 6px !important;
+  padding: 10px 14px !important;
+  margin: 10px 8px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  color: var(--pressure-text-light) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
 }
 
 .pressure-toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
 }
 
 .pressure-valuation-box {
-  font-size: 13px;
-  color: var(--pressure-text-muted);
+  font-size: 13px !important;
+  color: var(--pressure-text-muted) !important;
 }
 
 .pressure-valuation-value {
-  color: var(--pressure-accent-green);
-  font-weight: 700;
-  font-size: 14px;
+  color: var(--pressure-accent-green) !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
 }
 
 .pressure-btn {
-  background: linear-gradient(to right, #47bfff 0%, #1a44c2 100%);
-  color: #ffffff;
-  border: none;
-  padding: 7px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: opacity 0.2s ease;
+  background: linear-gradient(to right, #47bfff 0%, #1a44c2 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 8px 14px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-decoration: none !important;
 }
 
 .pressure-btn:active {
-  opacity: 0.8;
+  opacity: 0.8 !important;
 }
 
 .pressure-btn.green {
-  background: linear-gradient(to right, #79a11a 0%, #4c6b22 100%);
+  background: linear-gradient(to right, #79a11a 0%, #4c6b22 100%) !important;
 }
 
 .pressure-btn.red {
-  background: linear-gradient(to right, #e74c3c 0%, #c0392b 100%);
+  background: linear-gradient(to right, #e74c3c 0%, #c0392b 100%) !important;
 }
 
 .pressure-btn.secondary {
-  background: #2a475e;
-  color: #c6d4df;
+  background: #2a475e !important;
+  color: #c6d4df !important;
 }
 
 .pressure-select {
-  background: #101822;
-  color: var(--pressure-text-light);
-  border: 1px solid var(--pressure-border);
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 12px;
+  background: #101822 !important;
+  color: var(--pressure-text-light) !important;
+  border: 1px solid var(--pressure-border) !important;
+  padding: 6px 10px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
 }
 
-/* Modals & Dialogs */
+/* Modals */
 .pressure-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.78);
-  backdrop-filter: blur(5px);
-  z-index: 100000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.82) !important;
+  backdrop-filter: blur(6px) !important;
+  z-index: 1000000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 12px !important;
 }
 
 .pressure-modal {
-  background: var(--pressure-bg-dark);
-  border: 1px solid var(--pressure-border);
-  border-radius: 8px;
-  width: 100%;
-  max-width: 620px;
-  max-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
-  color: var(--pressure-text-light);
+  background: var(--pressure-bg-dark) !important;
+  border: 1px solid var(--pressure-border) !important;
+  border-radius: 10px !important;
+  width: 100% !important;
+  max-width: 640px !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9) !important;
+  color: var(--pressure-text-light) !important;
 }
 
 .pressure-modal-header {
-  background: var(--pressure-bg-header);
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--pressure-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  background: var(--pressure-bg-header) !important;
+  padding: 14px 18px !important;
+  border-bottom: 1px solid var(--pressure-border) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
 }
 
 .pressure-modal-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--pressure-accent-blue);
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: var(--pressure-accent-blue) !important;
 }
 
 .pressure-modal-close {
-  background: transparent;
-  border: none;
-  color: var(--pressure-text-muted);
-  font-size: 20px;
-  cursor: pointer;
+  background: transparent !important;
+  border: none !important;
+  color: var(--pressure-text-muted) !important;
+  font-size: 24px !important;
+  cursor: pointer !important;
+  padding: 0 6px !important;
 }
 
 .pressure-modal-body {
-  padding: 16px;
-  overflow-y: auto;
-  flex: 1;
+  padding: 16px !important;
+  overflow-y: auto !important;
+  flex: 1 !important;
 }
 
 .pressure-modal-footer {
-  background: var(--pressure-bg-header);
-  padding: 12px 18px;
-  border-top: 1px solid var(--pressure-border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  background: var(--pressure-bg-header) !important;
+  padding: 12px 18px !important;
+  border-top: 1px solid var(--pressure-border) !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
 }
 
-/* Tables in Preview */
+/* Full In-App Steam Chat Container */
+.pressure-chat-wrapper {
+  display: flex !important;
+  height: 520px !important;
+  background: #0f1217 !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+}
+
+.pressure-chat-sidebar {
+  width: 200px !important;
+  background: #121820 !important;
+  border-right: 1px solid var(--pressure-border) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.pressure-chat-search-box {
+  padding: 8px !important;
+  border-bottom: 1px solid var(--pressure-border) !important;
+}
+
+.pressure-chat-search-input {
+  width: 100% !important;
+  background: #1a222d !important;
+  border: 1px solid #2a475e !important;
+  color: #fff !important;
+  padding: 6px 8px !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
+  box-sizing: border-box !important;
+}
+
+.pressure-chat-friends-list {
+  flex: 1 !important;
+  overflow-y: auto !important;
+}
+
+.pressure-chat-friend-row {
+  display: flex !important;
+  align-items: center !important;
+  padding: 8px 10px !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+  border-bottom: 1px solid rgba(42, 71, 94, 0.25) !important;
+  transition: background 0.15s ease !important;
+}
+
+.pressure-chat-friend-row:active, .pressure-chat-friend-row.active {
+  background: #1b2838 !important;
+}
+
+.pressure-chat-friend-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 4px !important;
+  background: #2a475e !important;
+}
+
+.pressure-chat-friend-info {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.pressure-chat-friend-name {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pressure-chat-friend-status {
+  font-size: 10px !important;
+  color: #8f98a0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pressure-chat-friend-status.ingame {
+  color: #a4d007 !important;
+  font-weight: 600 !important;
+}
+
+.pressure-chat-friend-status.online {
+  color: #66c0f4 !important;
+}
+
+.pressure-chat-main {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #0f1217 !important;
+}
+
+.pressure-chat-convo-header {
+  padding: 10px 14px !important;
+  background: #16202c !important;
+  border-bottom: 1px solid var(--pressure-border) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #66c0f4 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.pressure-chat-messages-area {
+  flex: 1 !important;
+  padding: 14px !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.pressure-chat-bubble {
+  max-width: 78% !important;
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  word-break: break-word !important;
+}
+
+.pressure-chat-bubble.out {
+  align-self: flex-end !important;
+  background: linear-gradient(135deg, #1999ff, #10559e) !important;
+  color: #ffffff !important;
+  border-bottom-right-radius: 2px !important;
+}
+
+.pressure-chat-bubble.in {
+  align-self: flex-start !important;
+  background: #1e2837 !important;
+  color: #e6e6e6 !important;
+  border: 1px solid #2a475e !important;
+  border-bottom-left-radius: 2px !important;
+}
+
+.pressure-chat-input-bar {
+  display: flex !important;
+  padding: 10px !important;
+  background: #121820 !important;
+  border-top: 1px solid var(--pressure-border) !important;
+  gap: 8px !important;
+}
+
+.pressure-chat-msg-input {
+  flex: 1 !important;
+  background: #1a222d !important;
+  border: 1px solid #2a475e !important;
+  color: #ffffff !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+}
+
+/* Tables & Progress */
 .pressure-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  margin-top: 10px;
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: 12px !important;
+  margin-top: 10px !important;
 }
 
 .pressure-table th {
-  background: #171d25;
-  color: var(--pressure-text-muted);
-  text-align: left;
-  padding: 8px;
-  border-bottom: 1px solid var(--pressure-border);
+  background: #171d25 !important;
+  color: var(--pressure-text-muted) !important;
+  text-align: left !important;
+  padding: 8px !important;
+  border-bottom: 1px solid var(--pressure-border) !important;
 }
 
 .pressure-table td {
-  padding: 8px;
-  border-bottom: 1px solid rgba(42, 71, 94, 0.4);
+  padding: 8px !important;
+  border-bottom: 1px solid rgba(42, 71, 94, 0.4) !important;
 }
 
-.pressure-table tr:hover {
-  background: rgba(42, 71, 94, 0.2);
-}
-
-/* Progress bar */
 .pressure-progress-bar-container {
-  width: 100%;
-  height: 10px;
-  background: #101822;
-  border-radius: 5px;
-  overflow: hidden;
-  margin: 12px 0;
-  border: 1px solid var(--pressure-border);
+  width: 100% !important;
+  height: 8px !important;
+  background: #101822 !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  margin: 12px 0 !important;
 }
 
 .pressure-progress-bar {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, #66c0f4, #5c7e10);
-  transition: width 0.2s ease;
-}
-
-/* Trade Valuation Banner */
-.pressure-trade-banner {
-  background: #171a21;
-  border: 1px solid var(--pressure-border);
-  border-radius: 6px;
-  padding: 12px;
-  margin: 12px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pressure-trade-comparison {
-  display: flex;
-  justify-content: space-around;
-  font-size: 13px;
-}
-
-.pressure-trade-side {
-  text-align: center;
-}
-
-.pressure-trade-side .amount {
-  font-size: 16px;
-  font-weight: bold;
-  color: var(--pressure-accent-blue);
-}
-
-.pressure-trade-warning {
-  background: rgba(217, 83, 79, 0.2);
-  border: 1px solid var(--pressure-accent-red);
-  color: #ff8581;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-}
-
-/* In-App Chat Modal */
-.pressure-chat-container {
-  display: flex;
-  height: 480px;
-}
-
-.pressure-chat-friends {
-  width: 180px;
-  border-right: 1px solid var(--pressure-border);
-  overflow-y: auto;
-}
-
-.pressure-chat-friend-item {
-  padding: 8px 10px;
-  cursor: pointer;
-  border-bottom: 1px solid rgba(42, 71, 94, 0.3);
-  font-size: 12px;
-}
-
-.pressure-chat-friend-item.active {
-  background: #2a475e;
-}
-
-.pressure-chat-friend-item .status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 4px;
-  margin-right: 6px;
-  background: #8f98a0;
-}
-
-.pressure-chat-friend-item.online .status-dot {
-  background: #5c7e10;
-}
-
-.pressure-chat-messages {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.pressure-chat-history {
-  flex: 1;
-  padding: 12px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pressure-chat-msg {
-  max-width: 75%;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  word-break: break-word;
-}
-
-.pressure-chat-msg.sent {
-  align-self: flex-end;
-  background: #1999ff;
-  color: #fff;
-}
-
-.pressure-chat-msg.received {
-  align-self: flex-start;
-  background: #2a475e;
-  color: #e6e6e6;
-}
-
-.pressure-chat-compose {
-  display: flex;
-  padding: 8px;
-  border-top: 1px solid var(--pressure-border);
-  gap: 6px;
-}
-
-.pressure-chat-input {
-  flex: 1;
-  background: #101822;
-  border: 1px solid var(--pressure-border);
-  color: #fff;
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 12px;
+  height: 100% !important;
+  width: 0% !important;
+  background: linear-gradient(90deg, #66c0f4, #a4d007) !important;
+  transition: width 0.2s ease !important;
 }

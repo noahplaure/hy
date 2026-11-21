@@ -9,6 +9,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)log:(NSString *)format, ... NS_FORMAT_FUNCTION(1, 2);
 - (void)logMessage:(NSString *)message;
 - (NSArray<NSString *> *)recentLogs;
+- (NSString *)logFilePath;
 - (void)clear;
 
 @end
