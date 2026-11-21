@@ -1,0 +1,6 @@
+.theos/
+packages/
+_fallback/
+Outputs/
+*.log
+.DS_Store

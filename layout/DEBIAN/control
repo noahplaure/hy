@@ -1,0 +1,9 @@
+Package: com.pressure.tweak
+Name: Pressure
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: Advanced power-user enhancement suite for Steam Mobile on iOS
+Maintainer: Senior Engineer
+Author: Raymond
+Section: Tweaks
+Depends: mobilesubstrate

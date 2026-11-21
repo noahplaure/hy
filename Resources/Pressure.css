@@ -1,0 +1,403 @@
+/* Pressure - Steam Mobile Power-User Suite Styles */
+
+:root {
+  --pressure-bg-dark: #121418;
+  --pressure-bg-card: #1b2838;
+  --pressure-bg-header: #171a21;
+  --pressure-accent-blue: #66c0f4;
+  --pressure-accent-blue-hover: #419cd0;
+  --pressure-accent-green: #5c7e10;
+  --pressure-accent-green-hover: #79a11a;
+  --pressure-accent-red: #d9534f;
+  --pressure-accent-yellow: #f0ad4e;
+  --pressure-text-light: #e6e6e6;
+  --pressure-text-muted: #8f98a0;
+  --pressure-border: #2a475e;
+}
+
+/* Floating Action Button (Pressure Launcher) */
+.pressure-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 20px;
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background: linear-gradient(135deg, #1999ff 0%, #10559e 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  z-index: 99999;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+  font-size: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.pressure-fab:active {
+  transform: scale(0.92);
+}
+
+/* Inventory Item Badges & Overlays */
+.pressure-item-checkbox {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 20px;
+  height: 20px;
+  z-index: 100;
+  accent-color: var(--pressure-accent-blue);
+  cursor: pointer;
+}
+
+.pressure-price-badge {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  background: rgba(18, 20, 24, 0.88);
+  backdrop-filter: blur(4px);
+  color: #a4d007;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(164, 208, 7, 0.35);
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 90;
+}
+
+.pressure-price-badge.external {
+  color: #ff9900;
+  border-color: rgba(255, 153, 0, 0.35);
+}
+
+.pressure-trade-hold-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(217, 83, 79, 0.9);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: bold;
+  padding: 2px 5px;
+  border-radius: 3px;
+  z-index: 95;
+}
+
+/* Inventory Toolbar */
+.pressure-inventory-toolbar {
+  background: var(--pressure-bg-card);
+  border: 1px solid var(--pressure-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 12px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--pressure-text-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.pressure-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pressure-valuation-box {
+  font-size: 13px;
+  color: var(--pressure-text-muted);
+}
+
+.pressure-valuation-value {
+  color: var(--pressure-accent-green);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.pressure-btn {
+  background: linear-gradient(to right, #47bfff 0%, #1a44c2 100%);
+  color: #ffffff;
+  border: none;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.pressure-btn:active {
+  opacity: 0.8;
+}
+
+.pressure-btn.green {
+  background: linear-gradient(to right, #79a11a 0%, #4c6b22 100%);
+}
+
+.pressure-btn.red {
+  background: linear-gradient(to right, #e74c3c 0%, #c0392b 100%);
+}
+
+.pressure-btn.secondary {
+  background: #2a475e;
+  color: #c6d4df;
+}
+
+.pressure-select {
+  background: #101822;
+  color: var(--pressure-text-light);
+  border: 1px solid var(--pressure-border);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* Modals & Dialogs */
+.pressure-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(5px);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.pressure-modal {
+  background: var(--pressure-bg-dark);
+  border: 1px solid var(--pressure-border);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 620px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+  color: var(--pressure-text-light);
+}
+
+.pressure-modal-header {
+  background: var(--pressure-bg-header);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--pressure-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pressure-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pressure-accent-blue);
+}
+
+.pressure-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--pressure-text-muted);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.pressure-modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.pressure-modal-footer {
+  background: var(--pressure-bg-header);
+  padding: 12px 18px;
+  border-top: 1px solid var(--pressure-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Tables in Preview */
+.pressure-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.pressure-table th {
+  background: #171d25;
+  color: var(--pressure-text-muted);
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--pressure-border);
+}
+
+.pressure-table td {
+  padding: 8px;
+  border-bottom: 1px solid rgba(42, 71, 94, 0.4);
+}
+
+.pressure-table tr:hover {
+  background: rgba(42, 71, 94, 0.2);
+}
+
+/* Progress bar */
+.pressure-progress-bar-container {
+  width: 100%;
+  height: 10px;
+  background: #101822;
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 12px 0;
+  border: 1px solid var(--pressure-border);
+}
+
+.pressure-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #66c0f4, #5c7e10);
+  transition: width 0.2s ease;
+}
+
+/* Trade Valuation Banner */
+.pressure-trade-banner {
+  background: #171a21;
+  border: 1px solid var(--pressure-border);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pressure-trade-comparison {
+  display: flex;
+  justify-content: space-around;
+  font-size: 13px;
+}
+
+.pressure-trade-side {
+  text-align: center;
+}
+
+.pressure-trade-side .amount {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--pressure-accent-blue);
+}
+
+.pressure-trade-warning {
+  background: rgba(217, 83, 79, 0.2);
+  border: 1px solid var(--pressure-accent-red);
+  color: #ff8581;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* In-App Chat Modal */
+.pressure-chat-container {
+  display: flex;
+  height: 480px;
+}
+
+.pressure-chat-friends {
+  width: 180px;
+  border-right: 1px solid var(--pressure-border);
+  overflow-y: auto;
+}
+
+.pressure-chat-friend-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(42, 71, 94, 0.3);
+  font-size: 12px;
+}
+
+.pressure-chat-friend-item.active {
+  background: #2a475e;
+}
+
+.pressure-chat-friend-item .status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  margin-right: 6px;
+  background: #8f98a0;
+}
+
+.pressure-chat-friend-item.online .status-dot {
+  background: #5c7e10;
+}
+
+.pressure-chat-messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pressure-chat-history {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pressure-chat-msg {
+  max-width: 75%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.pressure-chat-msg.sent {
+  align-self: flex-end;
+  background: #1999ff;
+  color: #fff;
+}
+
+.pressure-chat-msg.received {
+  align-self: flex-start;
+  background: #2a475e;
+  color: #e6e6e6;
+}
+
+.pressure-chat-compose {
+  display: flex;
+  padding: 8px;
+  border-top: 1px solid var(--pressure-border);
+  gap: 6px;
+}
+
+.pressure-chat-input {
+  flex: 1;
+  background: #101822;
+  border: 1px solid var(--pressure-border);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
