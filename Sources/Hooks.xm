@@ -16,7 +16,7 @@ static void LoadPressureAssets(void) {
         NSBundle *mainBundle = [NSBundle mainBundle];
         NSString *bundlePath = [mainBundle pathForResource:@"Pressure" ofType:@"bundle"];
         if (!bundlePath) {
-            bundlePath = @"/Library/Application Support/Pressure";
+            bundlePath = @"/Library/Application Support/Pressure.bundle";
             if (![[NSFileManager defaultManager] fileExistsAtPath:bundlePath]) {
                 bundlePath = [[mainBundle bundlePath] stringByAppendingPathComponent:@"Pressure.bundle"];
             }
@@ -34,8 +34,8 @@ static void LoadPressureAssets(void) {
 
         // Embedded fallback guarantees code execution even if bundle is missing
         if (!sPressureUserScript || sPressureUserScript.length == 0) {
-            sPressureUserScript = kEmbeddedPressureUserJS;
-            sPressureCSS = kEmbeddedPressureCSS;
+            sPressureUserScript = GetEmbeddedPressureUserJS();
+            sPressureCSS = GetEmbeddedPressureCSS();
             PressureLog(@"[Hooks] Loaded embedded JS (%lu bytes) and CSS (%lu bytes)", 
                         (unsigned long)sPressureUserScript.length, (unsigned long)sPressureCSS.length);
         }
