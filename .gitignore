@@ -4,3 +4,4 @@ _fallback/
 Outputs/
 *.log
 .DS_Store
+*.txt

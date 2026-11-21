@@ -1,40 +1,169 @@
 /* Pressure - Steam Mobile Power-User Suite Styles */
 
 :root {
-  --pressure-bg-dark: #0f1217;
-  --pressure-bg-card: #17212e;
-  --pressure-bg-header: #121820;
+  --pressure-bg-dark: #12161c;
+  --pressure-bg-card: #1b2029;
+  --pressure-bg-header: #1e222a;
   --pressure-accent-blue: #66c0f4;
-  --pressure-accent-blue-hover: #419cd0;
+  --pressure-accent-blue-deep: #1999ff;
   --pressure-accent-green: #a4d007;
-  --pressure-accent-green-bg: #4c6b22;
   --pressure-accent-red: #d9534f;
-  --pressure-accent-orange: #ff9900;
+  --pressure-accent-orange: #ffaa00;
   --pressure-text-light: #f0f3f6;
   --pressure-text-muted: #8f98a0;
-  --pressure-border: #2a475e;
+  --pressure-border: #2a3545;
 }
 
-/* Inventory Item Badges & Overlays */
+/* ==========================================================================
+   1. CS2 INVENTORY ENHANCEMENTS
+   ========================================================================== */
+
+/* Symmetric Steam Inventory Toolbar */
+.pressure-inventory-toolbar {
+  background: var(--pressure-bg-card) !important;
+  border: 1px solid var(--pressure-border) !important;
+  border-radius: 8px !important;
+  padding: 12px 14px !important;
+  margin: 10px 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  color: #c6d4df !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
+  box-sizing: border-box !important;
+}
+
+.pressure-toolbar-primary-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
+
+.pressure-valuation-container {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--pressure-text-muted) !important;
+}
+
+.pressure-valuation-badge {
+  background: rgba(164, 208, 7, 0.12) !important;
+  border: 1px solid rgba(164, 208, 7, 0.4) !important;
+  color: var(--pressure-accent-green) !important;
+  padding: 4px 10px !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2px !important;
+}
+
+.pressure-toolbar-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.pressure-toolbar-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 34px !important;
+  padding: 0 16px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: all 0.15s ease !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.pressure-toolbar-btn.blue {
+  background: linear-gradient(135deg, #1999ff, #1066b8) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(25, 153, 255, 0.3) !important;
+}
+
+.pressure-toolbar-btn.secondary {
+  background: #242c38 !important;
+  border-color: #384558 !important;
+  color: #c6d4df !important;
+}
+
+.pressure-toolbar-btn.green {
+  background: linear-gradient(135deg, #79a11a, #4c6b22) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(121, 161, 26, 0.3) !important;
+}
+
+.pressure-toolbar-btn.red {
+  background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+  color: #ffffff !important;
+}
+
+.pressure-toolbar-btn:active {
+  opacity: 0.8 !important;
+  transform: scale(0.98) !important;
+}
+
+/* Selection Mode Row: Hidden unless user clicks "Select" */
+.pressure-toolbar-selection-row {
+  display: none !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  padding-top: 10px !important;
+  border-top: 1px solid #283342 !important;
+}
+
+.pressure-selection-active .pressure-toolbar-selection-row {
+  display: flex !important;
+}
+
+.pressure-toolbar-select {
+  height: 34px !important;
+  background: #242c38 !important;
+  border: 1px solid #384558 !important;
+  color: #c6d4df !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  outline: none !important;
+}
+
+/* Item Checkboxes: HIDDEN by default */
 .pressure-item-checkbox {
+  display: none !important;
+}
+
+/* Only visible when Select mode is active */
+.pressure-selection-active .pressure-item-checkbox {
+  display: block !important;
   position: absolute !important;
-  top: 4px !important;
-  left: 4px !important;
+  top: 6px !important;
+  left: 6px !important;
   width: 22px !important;
   height: 22px !important;
   z-index: 999 !important;
-  accent-color: var(--pressure-accent-blue) !important;
+  accent-color: #1999ff !important;
   cursor: pointer !important;
 }
 
-/* CS2 Item Price Badge - Bold, High-Contrast directly ON the item card */
+/* CS2 Item Price Badge - Displayed directly ON the bottom of the skin card */
 .pressure-cs2-price-container {
   position: absolute !important;
   bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  background: rgba(15, 18, 23, 0.95) !important;
-  border-top: 1px solid rgba(102, 192, 244, 0.4) !important;
+  background: rgba(18, 22, 29, 0.94) !important;
+  border-top: 1px solid rgba(102, 192, 244, 0.45) !important;
   padding: 3px 2px !important;
   display: flex !important;
   flex-direction: column !important;
@@ -42,7 +171,8 @@
   justify-content: center !important;
   z-index: 900 !important;
   pointer-events: none !important;
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.7) !important;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.75) !important;
+  text-align: center !important;
 }
 
 .pressure-cs2-steam-price {
@@ -63,104 +193,459 @@
   text-shadow: 0 1px 2px #000 !important;
 }
 
-.pressure-trade-hold-badge {
-  position: absolute !important;
-  top: 4px !important;
-  right: 4px !important;
-  background: rgba(217, 83, 79, 0.95) !important;
-  color: #ffffff !important;
-  font-size: 9px !important;
-  font-weight: bold !important;
-  padding: 2px 4px !important;
-  border-radius: 3px !important;
-  z-index: 910 !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.5) !important;
+/* ==========================================================================
+   2. FULL IN-APP STEAM CHAT TAB (Gray palette with Steam blue accents)
+   ========================================================================== */
+
+.pressure-chat-tab-container {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  background: #171a21 !important;
+  z-index: 999999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  color: #c6d4df !important;
+  overflow: hidden !important;
 }
 
-/* Inventory Toolbar */
-.pressure-inventory-toolbar {
-  background: var(--pressure-bg-card) !important;
-  border: 1px solid var(--pressure-border) !important;
-  border-radius: 6px !important;
-  padding: 10px 14px !important;
-  margin: 10px 8px !important;
+/* Chat Header Bar */
+.pressure-chat-topbar {
   display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 10px !important;
   align-items: center !important;
   justify-content: space-between !important;
-  color: var(--pressure-text-light) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  height: 52px !important;
+  padding: 0 14px !important;
+  background: #1e222a !important;
+  border-bottom: 1px solid #2a313d !important;
+  flex-shrink: 0 !important;
 }
 
-.pressure-toolbar-group {
+.pressure-chat-title-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.pressure-chat-close-btn {
+  background: none !important;
+  border: none !important;
+  color: #66c0f4 !important;
+  font-size: 20px !important;
+  padding: 4px 8px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.pressure-chat-title {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  letter-spacing: 0.3px !important;
+}
+
+/* Current User Persona & Activity Switcher */
+.pressure-chat-persona-controls {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.pressure-chat-self-status {
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
-}
-
-.pressure-valuation-box {
-  font-size: 13px !important;
-  color: var(--pressure-text-muted) !important;
-}
-
-.pressure-valuation-value {
-  color: var(--pressure-accent-green) !important;
-  font-weight: 700 !important;
-  font-size: 15px !important;
-}
-
-.pressure-btn {
-  background: linear-gradient(to right, #47bfff 0%, #1a44c2 100%) !important;
-  color: #ffffff !important;
-  border: none !important;
-  padding: 8px 14px !important;
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  border-radius: 4px !important;
+  background: #232832 !important;
+  border: 1px solid #323b49 !important;
+  border-radius: 20px !important;
+  padding: 4px 12px 4px 8px !important;
   cursor: pointer !important;
   user-select: none !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  text-decoration: none !important;
+  transition: background 0.15s ease !important;
 }
 
-.pressure-btn:active {
+.pressure-chat-self-status:active {
+  background: #2c3442 !important;
+}
+
+.pressure-chat-status-dot {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+}
+.pressure-chat-status-dot.online { background: #66c0f4 !important; box-shadow: 0 0 6px rgba(102, 192, 244, 0.7) !important; }
+.pressure-chat-status-dot.ingame { background: #a4d007 !important; box-shadow: 0 0 6px rgba(164, 208, 7, 0.7) !important; }
+.pressure-chat-status-dot.away { background: #ffaa00 !important; box-shadow: 0 0 6px rgba(255, 170, 0, 0.7) !important; }
+.pressure-chat-status-dot.invisible, .pressure-chat-status-dot.offline { background: #8f98a0 !important; }
+
+.pressure-chat-status-name {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #e1e7ee !important;
+}
+
+/* Activity Status Dropdown Menu */
+.pressure-status-dropdown {
+  position: absolute !important;
+  top: 110% !important;
+  right: 0 !important;
+  background: #1e242d !important;
+  border: 1px solid #3a475a !important;
+  border-radius: 8px !important;
+  padding: 6px 0 !important;
+  min-width: 160px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8) !important;
+  z-index: 1000000 !important;
+  display: none !important;
+}
+
+.pressure-status-dropdown.show {
+  display: block !important;
+}
+
+.pressure-status-option {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 14px !important;
+  font-size: 13px !important;
+  color: #c6d4df !important;
+  cursor: pointer !important;
+  transition: background 0.12s ease !important;
+}
+
+.pressure-status-option:active {
+  background: #2a3442 !important;
+}
+
+/* Chat Main Layout */
+.pressure-chat-body {
+  display: flex !important;
+  flex: 1 !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+/* Friends Sidebar Panel */
+.pressure-chat-list-panel {
+  width: 100% !important;
+  max-width: 320px !important;
+  background: #1b1f26 !important;
+  border-right: 1px solid #282f3c !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Responsive switching between list & conversation on mobile */
+@media (max-width: 650px) {
+  .pressure-chat-list-panel {
+    max-width: 100% !important;
+  }
+  .pressure-chat-tab-container.in-convo .pressure-chat-list-panel {
+    display: none !important;
+  }
+  .pressure-chat-tab-container:not(.in-convo) .pressure-chat-convo-panel {
+    display: none !important;
+  }
+}
+
+/* Search bar & filter pills */
+.pressure-chat-filter-bar {
+  padding: 10px 12px !important;
+  border-bottom: 1px solid #282f3c !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  background: #191c22 !important;
+}
+
+.pressure-chat-search-input {
+  width: 100% !important;
+  background: #222731 !important;
+  border: 1px solid #333d4e !important;
+  color: #ffffff !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+}
+
+.pressure-chat-search-input:focus {
+  border-color: #66c0f4 !important;
+}
+
+.pressure-chat-tabs-row {
+  display: flex !important;
+  gap: 6px !important;
+}
+
+.pressure-chat-tab-pill {
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 12px !important;
+  background: #232832 !important;
+  color: #8f98a0 !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+}
+
+.pressure-chat-tab-pill.active {
+  background: #2f3948 !important;
+  color: #66c0f4 !important;
+  border-color: #43546b !important;
+}
+
+/* Friends scrollable list */
+.pressure-chat-friends-scroll {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.pressure-friend-item {
+  display: flex !important;
+  align-items: center !important;
+  padding: 10px 14px !important;
+  gap: 12px !important;
+  cursor: pointer !important;
+  border-bottom: 1px solid #202631 !important;
+  transition: background 0.12s ease !important;
+}
+
+.pressure-friend-item:active, .pressure-friend-item.active {
+  background: #242c3a !important;
+}
+
+.pressure-friend-avatar-wrap {
+  position: relative !important;
+  width: 42px !important;
+  height: 42px !important;
+  flex-shrink: 0 !important;
+}
+
+.pressure-friend-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 4px !important;
+  object-fit: cover !important;
+  background: #272f3d !important;
+  border: 1px solid #313d4f !important;
+}
+
+.pressure-friend-avatar-wrap.ingame .pressure-friend-avatar-img {
+  border: 2px solid #a4d007 !important;
+}
+
+.pressure-friend-avatar-wrap.online .pressure-friend-avatar-img {
+  border: 2px solid #66c0f4 !important;
+}
+
+.pressure-friend-status-badge {
+  position: absolute !important;
+  bottom: -2px !important;
+  right: -2px !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  border: 2px solid #1b1f26 !important;
+}
+.pressure-friend-status-badge.online { background: #66c0f4 !important; }
+.pressure-friend-status-badge.ingame { background: #a4d007 !important; }
+.pressure-friend-status-badge.offline { background: #556272 !important; }
+
+.pressure-friend-text-wrap {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.pressure-friend-name {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #e1e7ee !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pressure-friend-status-sub {
+  font-size: 11px !important;
+  color: #8f98a0 !important;
+  margin-top: 2px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pressure-friend-status-sub.ingame {
+  color: #a4d007 !important;
+  font-weight: 500 !important;
+}
+
+.pressure-friend-status-sub.online {
+  color: #66c0f4 !important;
+}
+
+/* Conversation Panel */
+.pressure-chat-convo-panel {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #171a21 !important;
+}
+
+.pressure-convo-header {
+  height: 52px !important;
+  background: #1b1f26 !important;
+  border-bottom: 1px solid #282f3c !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 14px !important;
+  gap: 12px !important;
+  flex-shrink: 0 !important;
+}
+
+.pressure-convo-back-btn {
+  background: none !important;
+  border: none !important;
+  color: #66c0f4 !important;
+  font-size: 20px !important;
+  padding: 4px 8px !important;
+  margin-left: -6px !important;
+  cursor: pointer !important;
+  display: none !important;
+}
+
+@media (max-width: 650px) {
+  .pressure-convo-back-btn {
+    display: inline-flex !important;
+  }
+}
+
+.pressure-convo-header-info {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.pressure-convo-header-name {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.pressure-convo-header-status {
+  font-size: 11px !important;
+  color: #8f98a0 !important;
+}
+
+.pressure-chat-messages-area {
+  flex: 1 !important;
+  padding: 16px !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.pressure-chat-bubble {
+  max-width: 80% !important;
+  padding: 10px 14px !important;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  word-break: break-word !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+}
+
+.pressure-chat-bubble.out {
+  align-self: flex-end !important;
+  background: linear-gradient(135deg, #1999ff, #1066b8) !important;
+  color: #ffffff !important;
+  border-bottom-right-radius: 2px !important;
+}
+
+.pressure-chat-bubble.in {
+  align-self: flex-start !important;
+  background: #252b36 !important;
+  color: #e6eef5 !important;
+  border: 1px solid #333d4e !important;
+  border-bottom-left-radius: 2px !important;
+}
+
+.pressure-chat-bubble-time {
+  font-size: 9px !important;
+  opacity: 0.7 !important;
+  margin-top: 4px !important;
+  text-align: right !important;
+}
+
+/* Chat Input Bar */
+.pressure-chat-input-bar {
+  display: flex !important;
+  align-items: center !important;
+  padding: 10px 14px !important;
+  background: #1b1f26 !important;
+  border-top: 1px solid #282f3c !important;
+  gap: 10px !important;
+  flex-shrink: 0 !important;
+}
+
+.pressure-chat-msg-input {
+  flex: 1 !important;
+  background: #242b36 !important;
+  border: 1px solid #364254 !important;
+  color: #ffffff !important;
+  padding: 10px 14px !important;
+  border-radius: 20px !important;
+  font-size: 13px !important;
+  outline: none !important;
+}
+
+.pressure-chat-msg-input:focus {
+  border-color: #66c0f4 !important;
+}
+
+.pressure-chat-send-btn {
+  background: linear-gradient(135deg, #1999ff, #1066b8) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 20px !important;
+  padding: 9px 18px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+}
+
+.pressure-chat-send-btn:active {
   opacity: 0.8 !important;
 }
 
-.pressure-btn.green {
-  background: linear-gradient(to right, #79a11a 0%, #4c6b22 100%) !important;
-}
+/* ==========================================================================
+   3. MODAL OVERLAYS (Settings & Mass Sell)
+   ========================================================================== */
 
-.pressure-btn.red {
-  background: linear-gradient(to right, #e74c3c 0%, #c0392b 100%) !important;
-}
-
-.pressure-btn.secondary {
-  background: #2a475e !important;
-  color: #c6d4df !important;
-}
-
-.pressure-select {
-  background: #101822 !important;
-  color: var(--pressure-text-light) !important;
-  border: 1px solid var(--pressure-border) !important;
-  padding: 6px 10px !important;
-  border-radius: 4px !important;
-  font-size: 12px !important;
-}
-
-/* Modals */
 .pressure-modal-overlay {
   position: fixed !important;
   top: 0 !important;
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
-  background: rgba(0, 0, 0, 0.82) !important;
-  backdrop-filter: blur(6px) !important;
+  background: rgba(0, 0, 0, 0.84) !important;
+  backdrop-filter: blur(8px) !important;
   z-index: 1000000 !important;
   display: flex !important;
   align-items: center !important;
@@ -173,7 +658,7 @@
   border: 1px solid var(--pressure-border) !important;
   border-radius: 10px !important;
   width: 100% !important;
-  max-width: 640px !important;
+  max-width: 600px !important;
   max-height: 90vh !important;
   display: flex !important;
   flex-direction: column !important;
@@ -221,167 +706,7 @@
   gap: 10px !important;
 }
 
-/* Full In-App Steam Chat Container */
-.pressure-chat-wrapper {
-  display: flex !important;
-  height: 520px !important;
-  background: #0f1217 !important;
-  border-radius: 6px !important;
-  overflow: hidden !important;
-}
-
-.pressure-chat-sidebar {
-  width: 200px !important;
-  background: #121820 !important;
-  border-right: 1px solid var(--pressure-border) !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-.pressure-chat-search-box {
-  padding: 8px !important;
-  border-bottom: 1px solid var(--pressure-border) !important;
-}
-
-.pressure-chat-search-input {
-  width: 100% !important;
-  background: #1a222d !important;
-  border: 1px solid #2a475e !important;
-  color: #fff !important;
-  padding: 6px 8px !important;
-  border-radius: 4px !important;
-  font-size: 11px !important;
-  box-sizing: border-box !important;
-}
-
-.pressure-chat-friends-list {
-  flex: 1 !important;
-  overflow-y: auto !important;
-}
-
-.pressure-chat-friend-row {
-  display: flex !important;
-  align-items: center !important;
-  padding: 8px 10px !important;
-  gap: 8px !important;
-  cursor: pointer !important;
-  border-bottom: 1px solid rgba(42, 71, 94, 0.25) !important;
-  transition: background 0.15s ease !important;
-}
-
-.pressure-chat-friend-row:active, .pressure-chat-friend-row.active {
-  background: #1b2838 !important;
-}
-
-.pressure-chat-friend-avatar {
-  width: 32px !important;
-  height: 32px !important;
-  border-radius: 4px !important;
-  background: #2a475e !important;
-}
-
-.pressure-chat-friend-info {
-  flex: 1 !important;
-  min-width: 0 !important;
-}
-
-.pressure-chat-friend-name {
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  color: #ffffff !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-.pressure-chat-friend-status {
-  font-size: 10px !important;
-  color: #8f98a0 !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-.pressure-chat-friend-status.ingame {
-  color: #a4d007 !important;
-  font-weight: 600 !important;
-}
-
-.pressure-chat-friend-status.online {
-  color: #66c0f4 !important;
-}
-
-.pressure-chat-main {
-  flex: 1 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  background: #0f1217 !important;
-}
-
-.pressure-chat-convo-header {
-  padding: 10px 14px !important;
-  background: #16202c !important;
-  border-bottom: 1px solid var(--pressure-border) !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-  color: #66c0f4 !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-}
-
-.pressure-chat-messages-area {
-  flex: 1 !important;
-  padding: 14px !important;
-  overflow-y: auto !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-}
-
-.pressure-chat-bubble {
-  max-width: 78% !important;
-  padding: 8px 12px !important;
-  border-radius: 8px !important;
-  font-size: 12px !important;
-  line-height: 1.4 !important;
-  word-break: break-word !important;
-}
-
-.pressure-chat-bubble.out {
-  align-self: flex-end !important;
-  background: linear-gradient(135deg, #1999ff, #10559e) !important;
-  color: #ffffff !important;
-  border-bottom-right-radius: 2px !important;
-}
-
-.pressure-chat-bubble.in {
-  align-self: flex-start !important;
-  background: #1e2837 !important;
-  color: #e6e6e6 !important;
-  border: 1px solid #2a475e !important;
-  border-bottom-left-radius: 2px !important;
-}
-
-.pressure-chat-input-bar {
-  display: flex !important;
-  padding: 10px !important;
-  background: #121820 !important;
-  border-top: 1px solid var(--pressure-border) !important;
-  gap: 8px !important;
-}
-
-.pressure-chat-msg-input {
-  flex: 1 !important;
-  background: #1a222d !important;
-  border: 1px solid #2a475e !important;
-  color: #ffffff !important;
-  padding: 8px 12px !important;
-  border-radius: 6px !important;
-  font-size: 12px !important;
-}
-
-/* Tables & Progress */
+/* Mass Sell Table & Progress */
 .pressure-table {
   width: 100% !important;
   border-collapse: collapse !important;

@@ -2,9 +2,14 @@
 #import "PressureConfig.h"
 #import "PressureLogger.h"
 #import "PressureBiometrics.h"
+#import "PressureSettingsViewController.h"
 #import <UIKit/UIKit.h>
 
 NSString *const kPressureBridgeName = @"pressureBridge";
+
+@interface PressureBridge ()
+@property (nonatomic, strong) NSHashTable<WKWebView *> *activeWebViews;
+@end
 
 @implementation PressureBridge
 
@@ -17,11 +22,47 @@ NSString *const kPressureBridgeName = @"pressureBridge";
     return instance;
 }
 
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        _activeWebViews = [NSHashTable weakObjectsHashTable];
+    }
+    return self;
+}
+
+- (void)registerWebView:(WKWebView *)webView {
+    if (!webView) return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.activeWebViews addObject:webView];
+    });
+}
+
+- (void)broadcastJavaScript:(NSString *)js {
+    if (!js || js.length == 0) return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        for (WKWebView *wv in self.activeWebViews) {
+            [wv evaluateJavaScript:js completionHandler:nil];
+        }
+    });
+}
+
 - (void)attachToUserContentController:(WKUserContentController *)controller {
+    [self attachToUserContentController:controller inWorld:nil];
+}
+
+- (void)attachToUserContentController:(WKUserContentController *)controller inWorld:(nullable id)world {
     // Avoid double registration
     @try {
         [controller removeScriptMessageHandlerForName:kPressureBridgeName];
     } @catch (NSException *e) {}
+
+    if (world && @available(iOS 14.0, *)) {
+        if ([world isKindOfClass:[WKContentWorld class]]) {
+            [controller addScriptMessageHandler:self contentWorld:(WKContentWorld *)world name:kPressureBridgeName];
+            return;
+        }
+    }
+
     [controller addScriptMessageHandler:self name:kPressureBridgeName];
 }
 
@@ -44,6 +85,10 @@ NSString *const kPressureBridgeName = @"pressureBridge";
     NSDictionary *payload = body[@"payload"];
     WKWebView *webView = message.webView;
 
+    if (webView) {
+        [self registerWebView:webView];
+    }
+
     if ([action isEqualToString:@"getConfig"]) {
         NSDictionary *cfg = [[PressureConfig sharedInstance] toDictionary];
         [self sendResponseToWebView:webView callbackId:callbackId data:cfg error:nil];
@@ -51,6 +96,12 @@ NSString *const kPressureBridgeName = @"pressureBridge";
     else if ([action isEqualToString:@"saveConfig"]) {
         [[PressureConfig sharedInstance] updateFromDictionary:payload];
         [self sendResponseToWebView:webView callbackId:callbackId data:@{@"success": @YES} error:nil];
+    }
+    else if ([action isEqualToString:@"openSettingsModal"]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [PressureSettingsViewController presentFromRoot];
+        });
+        [self sendResponseToWebView:webView callbackId:callbackId data:@{@"opened": @YES} error:nil];
     }
     else if ([action isEqualToString:@"authenticateBiometrics"]) {
         NSString *desc = payload[@"description"] ?: @"Steam Action";
@@ -71,7 +122,6 @@ NSString *const kPressureBridgeName = @"pressureBridge";
             return;
         }
 
-        // Scheme verified from Steam_Chat.ipa reverse engineering
         NSString *urlStr = [NSString stringWithFormat:@"steamchatmobile://friend/%@", steamId];
         NSURL *url = [NSURL URLWithString:urlStr];
         dispatch_async(dispatch_get_main_queue(), ^{

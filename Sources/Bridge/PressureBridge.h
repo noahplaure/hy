@@ -10,7 +10,11 @@ extern NSString *const kPressureBridgeName;
 + (instancetype)sharedInstance;
 
 - (void)attachToUserContentController:(WKUserContentController *)controller;
+- (void)attachToUserContentController:(WKUserContentController *)controller inWorld:(nullable id)world;
 - (void)detachFromUserContentController:(WKUserContentController *)controller;
+
+- (void)registerWebView:(WKWebView *)webView;
+- (void)broadcastJavaScript:(NSString *)js;
 
 @end
 
